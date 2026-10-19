@@ -13,6 +13,7 @@ const windReadout = document.querySelector('#wind');
 const compassDial = document.querySelector('#compass-dial');
 const headingReadout = document.querySelector('#heading');
 const positionReadout = document.querySelector('#position');
+const landDistanceReadout = document.querySelector('#land-distance');
 window.__oceanFallback?.stop();
 window.__oceanFallback?.canvas.remove();
 const scene = new THREE.Scene();
@@ -190,7 +191,10 @@ function buildBoat() {
   });
   const wake = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 22, 16, 32), wakeMaterial);
   wake.rotation.x = -Math.PI / 2;
-  wake.position.set(0, .04, 11.5);
+  // The hull is rendered smaller than the navigation map, so enlarge the wake
+  // independently to keep a readable trail behind the ship.
+  wake.scale.set(3, 3, 1);
+  wake.position.set(0, .85, 36);
   wake.renderOrder = 1;
   boat.add(wake);
   boat.userData.wake = wake;
@@ -246,7 +250,7 @@ const TAIWAN_REFERENCE = { latitude: 23.70, longitude: 121.00 };
 const WORLD_UNITS_PER_KM = .25;
 const KM_PER_LATITUDE_DEGREE = 110.574;
 const KM_PER_LONGITUDE_DEGREE = 111.320 * Math.cos(THREE.MathUtils.degToRad(TAIWAN_REFERENCE.latitude));
-const TAIWAN_EAST_COAST_START = { latitude: 24.070, longitude: 122.000 };
+const TAIWAN_EAST_COAST_START = { latitude: 24.070, longitude: 121.860 };
 
 function geoToWorld({ latitude, longitude }) {
   return new THREE.Vector2(
@@ -348,9 +352,26 @@ function isOnTaiwan(x, z) {
   return inside;
 }
 
+function distanceToTaiwanKm(x, z) {
+  if (isOnTaiwan(x, z)) return 0;
+  let closestSquared = Infinity;
+  for (let i = 1; i < taiwanCoastline.length; i++) {
+    const a = taiwanCoastline[i - 1];
+    const b = taiwanCoastline[i];
+    const dx = b.x - a.x;
+    const dz = b.y - a.y;
+    const lengthSquared = dx * dx + dz * dz;
+    const progress = THREE.MathUtils.clamp(((x - a.x) * dx + (z - a.y) * dz) / lengthSquared, 0, 1);
+    const nearX = a.x + dx * progress;
+    const nearZ = a.y + dz * progress;
+    closestSquared = Math.min(closestSquared, (x - nearX) ** 2 + (z - nearZ) ** 2);
+  }
+  return Math.sqrt(closestSquared) / WORLD_UNITS_PER_KM;
+}
+
 const startingWorldPosition = geoToWorld(TAIWAN_EAST_COAST_START);
 boat.position.set(startingWorldPosition.x, .08, startingWorldPosition.y);
-boat.rotation.y = 0;
+boat.rotation.y = Math.PI / 2;
 boat.scale.setScalar(.07);
 scene.add(boat);
 loadPirateShip(boat);
@@ -392,7 +413,7 @@ addEventListener('keydown', (event) => {
   if (key === 'r' && !event.repeat) {
     velocity = 0;
     boat.position.set(startingWorldPosition.x, .08, startingWorldPosition.y);
-    boat.rotation.set(0, 0, 0);
+    boat.rotation.set(0, Math.PI / 2, 0);
   }
   if (key === 't' && !event.repeat) {
     setTimeOfDay(timeOfDay === 'morning' ? 'night' : 'morning');
@@ -419,14 +440,15 @@ function animate() {
   // Taiwan's simplified coastline is about 908 km. At .063 scene units/s
   // (four km per unit), cruising its perimeter takes roughly one real hour.
   const engineForce = throttle > 0 ? .03 : throttle < 0 ? -.022 : 0;
-  const windForce = windAlignment * windSpeed * .0005;
+  const windForce = windAlignment * windSpeed * .0001;
   velocity += (engineForce + windForce - velocity * .45) * delta;
   velocity = THREE.MathUtils.clamp(velocity, -.08, .11);
   const steer = (keys.has('a') ? 1 : 0) - (keys.has('d') ? 1 : 0);
   boat.rotation.y += steer * delta * (.36 + Math.abs(velocity) * .035) * Math.sign(velocity || 1);
   forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));
   starboard.set(-forward.y, forward.x);
-  const sideDrift = starboard.dot(windDirection) * windSpeed * (.018 + Math.abs(velocity) * .0022);
+  // Wind remains a gentle lateral influence at the new map-navigation scale.
+  const sideDrift = starboard.dot(windDirection) * windSpeed * (.00018 + Math.abs(velocity) * .000022);
   boat.position.x += (forward.x * velocity + starboard.x * sideDrift) * delta;
   boat.position.z += (forward.y * velocity + starboard.y * sideDrift) * delta;
 
@@ -455,7 +477,7 @@ function animate() {
   boat.position.y = THREE.MathUtils.lerp(boat.position.y, centerWave + .08, 1 - Math.pow(.002, delta));
   boat.rotation.x = THREE.MathUtils.lerp(boat.rotation.x, targetPitch, 1 - Math.pow(.006, delta));
   boat.rotation.z = THREE.MathUtils.lerp(boat.rotation.z, targetRoll, 1 - Math.pow(.006, delta));
-  const wakeForce = THREE.MathUtils.clamp(Math.abs(velocity) / 30, 0, 1);
+  const wakeForce = THREE.MathUtils.clamp(Math.abs(velocity) / .055, 0, 1);
   boat.userData.wake.material.uniforms.time.value = elapsed;
   boat.userData.wake.material.uniforms.strength.value = wakeForce * .58;
   water.material.uniforms.time.value += delta * (.65 + wakeForce * 4.5);
@@ -497,6 +519,8 @@ function animate() {
   const latitudeHemisphere = coordinates.latitude >= 0 ? 'N' : 'S';
   const longitudeHemisphere = coordinates.longitude >= 0 ? 'E' : 'W';
   positionReadout.textContent = `${Math.abs(coordinates.latitude).toFixed(3)}° ${latitudeHemisphere} · ${Math.abs(coordinates.longitude).toFixed(3)}° ${longitudeHemisphere}`;
+  const landDistance = distanceToTaiwanKm(boat.position.x, boat.position.z);
+  landDistanceReadout.textContent = landDistance < .2 ? 'TAIWAN COAST · ARRIVED' : `TAIWAN COAST · ${landDistance.toFixed(1)} km`;
   renderer.render(scene, camera);
 }
 

@@ -13,6 +13,7 @@ h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2.4rem); line-height: 1; font-wei
 .readout small { color: #b9d4df; font-size: .72rem; }
 .readout .wind { display: block; margin-top: .28rem; color: #9ed6e9; font-size: .56rem; letter-spacing: .08em; }
 .readout .position { display: block; margin-top: .25rem; color: #d8f2bf; font-size: .56rem; letter-spacing: .06em; font-variant-numeric: tabular-nums; }
+.readout .land-distance { display: block; margin-top: .2rem; color: #ffd99b; font-size: .53rem; letter-spacing: .07em; font-variant-numeric: tabular-nums; }
 .compass { position: fixed; z-index: 2; top: clamp(8.1rem, 15vw, 9.5rem); right: clamp(1.2rem, 3vw, 3rem); width: 6.2rem; height: 7.4rem; display: grid; place-items: center; color: #d9f4ff; pointer-events: none; text-shadow: 0 1px 6px #031226; }
 .compass::before { content: ""; position: absolute; top: 0; width: 6rem; height: 6rem; border: 1px solid #9de8ff3b; border-radius: 50%; background: color-mix(in srgb, #06213d 45%, transparent); backdrop-filter: blur(7px); }
 .compass-dial { position: absolute; top: .1rem; width: 5.8rem; height: 5.8rem; transition: transform .12s linear; }

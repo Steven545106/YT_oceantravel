@@ -28157,6 +28157,7 @@ void main() {
   var compassDial = document.querySelector("#compass-dial");
   var headingReadout = document.querySelector("#heading");
   var positionReadout = document.querySelector("#position");
+  var landDistanceReadout = document.querySelector("#land-distance");
   window.__oceanFallback?.stop();
   window.__oceanFallback?.canvas.remove();
   var scene = new Scene();
@@ -28323,7 +28324,8 @@ void main() {
     });
     const wake = new Mesh(new PlaneGeometry(5.8, 22, 16, 32), wakeMaterial);
     wake.rotation.x = -Math.PI / 2;
-    wake.position.set(0, 0.04, 11.5);
+    wake.scale.set(3, 3, 1);
+    wake.position.set(0, 0.85, 36);
     wake.renderOrder = 1;
     boat2.add(wake);
     boat2.userData.wake = wake;
@@ -28371,7 +28373,7 @@ void main() {
   var WORLD_UNITS_PER_KM = 0.25;
   var KM_PER_LATITUDE_DEGREE = 110.574;
   var KM_PER_LONGITUDE_DEGREE = 111.32 * Math.cos(MathUtils.degToRad(TAIWAN_REFERENCE.latitude));
-  var TAIWAN_EAST_COAST_START = { latitude: 24.07, longitude: 122 };
+  var TAIWAN_EAST_COAST_START = { latitude: 24.07, longitude: 121.86 };
   function geoToWorld({ latitude, longitude }) {
     return new Vector2(
       (longitude - TAIWAN_REFERENCE.longitude) * KM_PER_LONGITUDE_DEGREE * WORLD_UNITS_PER_KM,
@@ -28468,10 +28470,26 @@ void main() {
     }
     return inside;
   }
+  function distanceToTaiwanKm(x, z) {
+    if (isOnTaiwan(x, z)) return 0;
+    let closestSquared = Infinity;
+    for (let i = 1; i < taiwanCoastline.length; i++) {
+      const a = taiwanCoastline[i - 1];
+      const b = taiwanCoastline[i];
+      const dx = b.x - a.x;
+      const dz = b.y - a.y;
+      const lengthSquared = dx * dx + dz * dz;
+      const progress = MathUtils.clamp(((x - a.x) * dx + (z - a.y) * dz) / lengthSquared, 0, 1);
+      const nearX = a.x + dx * progress;
+      const nearZ = a.y + dz * progress;
+      closestSquared = Math.min(closestSquared, (x - nearX) ** 2 + (z - nearZ) ** 2);
+    }
+    return Math.sqrt(closestSquared) / WORLD_UNITS_PER_KM;
+  }
   var startingWorldPosition = geoToWorld(TAIWAN_EAST_COAST_START);
   var boat = buildBoat();
   boat.position.set(startingWorldPosition.x, 0.08, startingWorldPosition.y);
-  boat.rotation.y = 0;
+  boat.rotation.y = Math.PI / 2;
   boat.scale.setScalar(0.07);
   scene.add(boat);
   loadPirateShip(boat);
@@ -28506,7 +28524,7 @@ void main() {
     if (key === "r" && !event.repeat) {
       velocity = 0;
       boat.position.set(startingWorldPosition.x, 0.08, startingWorldPosition.y);
-      boat.rotation.set(0, 0, 0);
+      boat.rotation.set(0, Math.PI / 2, 0);
     }
     if (key === "t" && !event.repeat) {
       setTimeOfDay(timeOfDay === "morning" ? "night" : "morning");
@@ -28530,14 +28548,14 @@ void main() {
     const windAlignment = forward.dot(windDirection);
     const throttle = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
     const engineForce = throttle > 0 ? 0.03 : throttle < 0 ? -0.022 : 0;
-    const windForce = windAlignment * windSpeed * 5e-4;
+    const windForce = windAlignment * windSpeed * 1e-4;
     velocity += (engineForce + windForce - velocity * 0.45) * delta;
     velocity = MathUtils.clamp(velocity, -0.08, 0.11);
     const steer = (keys.has("a") ? 1 : 0) - (keys.has("d") ? 1 : 0);
     boat.rotation.y += steer * delta * (0.36 + Math.abs(velocity) * 0.035) * Math.sign(velocity || 1);
     forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));
     starboard.set(-forward.y, forward.x);
-    const sideDrift = starboard.dot(windDirection) * windSpeed * (0.018 + Math.abs(velocity) * 22e-4);
+    const sideDrift = starboard.dot(windDirection) * windSpeed * (18e-5 + Math.abs(velocity) * 22e-6);
     boat.position.x += (forward.x * velocity + starboard.x * sideDrift) * delta;
     boat.position.z += (forward.y * velocity + starboard.y * sideDrift) * delta;
     if (isOnTaiwan(boat.position.x, boat.position.z)) {
@@ -28564,7 +28582,7 @@ void main() {
     boat.position.y = MathUtils.lerp(boat.position.y, centerWave + 0.08, 1 - Math.pow(2e-3, delta));
     boat.rotation.x = MathUtils.lerp(boat.rotation.x, targetPitch, 1 - Math.pow(6e-3, delta));
     boat.rotation.z = MathUtils.lerp(boat.rotation.z, targetRoll, 1 - Math.pow(6e-3, delta));
-    const wakeForce = MathUtils.clamp(Math.abs(velocity) / 30, 0, 1);
+    const wakeForce = MathUtils.clamp(Math.abs(velocity) / 0.055, 0, 1);
     boat.userData.wake.material.uniforms.time.value = elapsed;
     boat.userData.wake.material.uniforms.strength.value = wakeForce * 0.58;
     water.material.uniforms.time.value += delta * (0.65 + wakeForce * 4.5);
@@ -28604,6 +28622,8 @@ void main() {
     const latitudeHemisphere = coordinates.latitude >= 0 ? "N" : "S";
     const longitudeHemisphere = coordinates.longitude >= 0 ? "E" : "W";
     positionReadout.textContent = `${Math.abs(coordinates.latitude).toFixed(3)}\xB0 ${latitudeHemisphere} \xB7 ${Math.abs(coordinates.longitude).toFixed(3)}\xB0 ${longitudeHemisphere}`;
+    const landDistance = distanceToTaiwanKm(boat.position.x, boat.position.z);
+    landDistanceReadout.textContent = landDistance < 0.2 ? "TAIWAN COAST \xB7 ARRIVED" : `TAIWAN COAST \xB7 ${landDistance.toFixed(1)} km`;
     renderer.render(scene, camera);
   }
   camera.position.set(0.5, 0.75, 2.2);
