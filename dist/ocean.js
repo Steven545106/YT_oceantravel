@@ -444,12 +444,12 @@ function animate() {
   starboard.set(-forward.y, forward.x);
   const windAlignment = forward.dot(windDirection);
   const throttle = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
-  // Taiwan's simplified coastline is about 908 km. At .063 scene units/s
-  // (four km per unit), cruising its perimeter takes roughly one real hour.
-  const engineForce = throttle > 0 ? .03 : throttle < 0 ? -.022 : 0;
+  // Taiwan's simplified coastline is about 908 km. At .38 scene units/s
+  // (four km per unit), cruising its perimeter takes roughly ten minutes.
+  const engineForce = throttle > 0 ? .175 : throttle < 0 ? -.13 : 0;
   const windForce = windAlignment * windSpeed * .0001;
   velocity += (engineForce + windForce - velocity * .45) * delta;
-  velocity = THREE.MathUtils.clamp(velocity, -.08, .11);
+  velocity = THREE.MathUtils.clamp(velocity, -.32, .45);
   const steer = (keys.has('a') ? 1 : 0) - (keys.has('d') ? 1 : 0);
   boat.rotation.y += steer * delta * (.36 + Math.abs(velocity) * .035) * Math.sign(velocity || 1);
   forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));

@@ -28554,10 +28554,10 @@ void main() {
     starboard.set(-forward.y, forward.x);
     const windAlignment = forward.dot(windDirection);
     const throttle = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-    const engineForce = throttle > 0 ? 0.03 : throttle < 0 ? -0.022 : 0;
+    const engineForce = throttle > 0 ? 0.175 : throttle < 0 ? -0.13 : 0;
     const windForce = windAlignment * windSpeed * 1e-4;
     velocity += (engineForce + windForce - velocity * 0.45) * delta;
-    velocity = MathUtils.clamp(velocity, -0.08, 0.11);
+    velocity = MathUtils.clamp(velocity, -0.32, 0.45);
     const steer = (keys.has("a") ? 1 : 0) - (keys.has("d") ? 1 : 0);
     boat.rotation.y += steer * delta * (0.36 + Math.abs(velocity) * 0.035) * Math.sign(velocity || 1);
     forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));
