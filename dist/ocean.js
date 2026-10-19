@@ -18,7 +18,7 @@ window.__oceanFallback?.canvas.remove();
 const scene = new THREE.Scene();
 scene.fog = new THREE.FogExp2(0x8aaec0, 0.000075);
 
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 20000);
+const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, .05, 20000);
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
@@ -130,7 +130,8 @@ function setTimeOfDay(mode) {
     if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = 0.28;
     if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = 0.48;
     if (skyUniforms.cloudElevation) skyUniforms.cloudElevation.value = 0.36;
-    sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 5), THREE.MathUtils.degToRad(180));
+    // Taiwan is in the northern hemisphere: morning light comes from the south, not north.
+    sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 18), THREE.MathUtils.degToRad(0));
     water.material.uniforms.sunColor.value.setHex(0xfff0c6);
     water.material.uniforms.waterColor.value.setHex(0x001e0f);
     water.material.uniforms.distortionScale.value = 3.2;
@@ -281,11 +282,13 @@ function addTaiwan() {
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geometry.computeVertexNormals();
   const island = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-    color: 0x426348,
+    color: 0x6f9b58,
     roughness: .92,
     metalness: 0,
     flatShading: true,
-    side: THREE.DoubleSide
+    side: THREE.DoubleSide,
+    emissive: 0x142912,
+    emissiveIntensity: .35
   }));
   scene.add(island);
 
@@ -304,7 +307,8 @@ function isOnTaiwan(x, z) {
 
 const startingWorldPosition = geoToWorld(TAIWAN_EAST_COAST_START);
 boat.position.set(startingWorldPosition.x, .08, startingWorldPosition.y);
-boat.rotation.y = Math.PI / 2;
+boat.rotation.y = 0;
+boat.scale.setScalar(.07);
 scene.add(boat);
 loadPirateShip(boat);
 addTaiwan();
@@ -320,8 +324,8 @@ function seaHeight(x, z, time) {
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI * .49;
-controls.minDistance = 10;
-controls.maxDistance = 160;
+controls.minDistance = 1.5;
+controls.maxDistance = 80;
 controls.enabled = false;
 let orbitMode = false;
 let velocity = 0;
@@ -345,7 +349,7 @@ addEventListener('keydown', (event) => {
   if (key === 'r' && !event.repeat) {
     velocity = 0;
     boat.position.set(startingWorldPosition.x, .08, startingWorldPosition.y);
-    boat.rotation.set(0, Math.PI / 2, 0);
+    boat.rotation.set(0, 0, 0);
   }
   if (key === 't' && !event.repeat) {
     setTimeOfDay(timeOfDay === 'morning' ? 'night' : 'morning');
@@ -369,10 +373,12 @@ function animate() {
   starboard.set(-forward.y, forward.x);
   const windAlignment = forward.dot(windDirection);
   const throttle = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
-  const engineForce = throttle > 0 ? 18 : throttle < 0 ? -13 : 0;
-  const windForce = windAlignment * windSpeed * .13;
+  // Taiwan's simplified coastline is about 908 km. At .063 scene units/s
+  // (four km per unit), cruising its perimeter takes roughly one real hour.
+  const engineForce = throttle > 0 ? .03 : throttle < 0 ? -.022 : 0;
+  const windForce = windAlignment * windSpeed * .0005;
   velocity += (engineForce + windForce - velocity * .45) * delta;
-  velocity = THREE.MathUtils.clamp(velocity, -18, 36);
+  velocity = THREE.MathUtils.clamp(velocity, -.08, .11);
   const steer = (keys.has('a') ? 1 : 0) - (keys.has('d') ? 1 : 0);
   boat.rotation.y += steer * delta * (.36 + Math.abs(velocity) * .035) * Math.sign(velocity || 1);
   forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));
@@ -413,9 +419,9 @@ function animate() {
 
   const atmosphericDrift = elapsed * .012;
   const isNight = timeOfDay === 'night';
-  const baseElevation = isNight ? 34 : 5;
+  const baseElevation = isNight ? 34 : 18;
   const elevation = baseElevation + Math.sin(atmosphericDrift) * (isNight ? 5 : 4.5);
-  const azimuth = (isNight ? -35 : 180) + atmosphericDrift * (isNight ? 18 : 24);
+  const azimuth = (isNight ? -35 : 0) + atmosphericDrift * (isNight ? 18 : 24);
   sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth));
   skyUniforms.sunPosition.value.copy(sun);
   water.material.uniforms.sunDirection.value.copy(sun).normalize();
@@ -425,9 +431,9 @@ function animate() {
   if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = (isNight ? .26 : .48) + Math.sin(elapsed * .07 + 1.2) * .045;
 
   if (!orbitMode) {
-    targetCamera.set(7.8, 9 + wakeForce * .7, 25 + wakeForce * 6.5).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
+    targetCamera.set(.5, .75 + wakeForce * .12, 2.2 + wakeForce * .45).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
     camera.position.lerp(targetCamera, 1 - Math.pow(.0006, delta));
-    targetLook.set(0, 2.4, -wakeForce * 5).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
+    targetLook.set(0, .2, -wakeForce * .4).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
     camera.lookAt(targetLook);
     camera.rotateZ(-steer * wakeForce * .018);
     camera.fov = THREE.MathUtils.lerp(camera.fov, 55 + wakeForce * 9, 1 - Math.pow(.02, delta));
@@ -436,7 +442,7 @@ function animate() {
     controls.target.lerp(boat.position, .08);
     controls.update();
   }
-  speedReadout.textContent = Math.abs(velocity * 1.94).toFixed(1);
+  speedReadout.textContent = Math.abs(velocity * 7775).toFixed(0);
   const compass = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   const windIndex = Math.round((Math.atan2(windDirection.x, windDirection.y) / (Math.PI * 2)) * 8 + 8) % 8;
   windReadout.textContent = `WIND · ${compass[windIndex]} ${windSpeed.toFixed(0)} kn`;
@@ -451,7 +457,7 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-camera.position.set(7.8, 9, 25);
+camera.position.set(.5, .75, 2.2);
 setTimeOfDay('morning');
 loading?.remove();
 renderer.setAnimationLoop(animate);

@@ -28161,7 +28161,7 @@ void main() {
   window.__oceanFallback?.canvas.remove();
   var scene = new Scene();
   scene.fog = new FogExp2(9088704, 75e-6);
-  var camera = new PerspectiveCamera(55, innerWidth / innerHeight, 0.5, 2e4);
+  var camera = new PerspectiveCamera(55, innerWidth / innerHeight, 0.05, 2e4);
   var renderer = new WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
   renderer.setSize(innerWidth, innerHeight);
@@ -28266,7 +28266,7 @@ void main() {
       if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = 0.28;
       if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = 0.48;
       if (skyUniforms.cloudElevation) skyUniforms.cloudElevation.value = 0.36;
-      sun.setFromSphericalCoords(1, MathUtils.degToRad(90 - 5), MathUtils.degToRad(180));
+    sun.setFromSphericalCoords(1, MathUtils.degToRad(90 - 18), MathUtils.degToRad(0));
       water.material.uniforms.sunColor.value.setHex(16773318);
       water.material.uniforms.waterColor.value.setHex(7695);
       water.material.uniforms.distortionScale.value = 3.2;
@@ -28403,11 +28403,13 @@ void main() {
     geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
     geometry.computeVertexNormals();
     const island = new Mesh(geometry, new MeshStandardMaterial({
-      color: 4350792,
+      color: 7314264,
       roughness: 0.92,
       metalness: 0,
       flatShading: true,
-      side: 2
+      side: 2,
+      emissive: 1321234,
+      emissiveIntensity: 0.35
     }));
     scene.add(island);
   }
@@ -28424,7 +28426,8 @@ void main() {
   var startingWorldPosition = geoToWorld(TAIWAN_EAST_COAST_START);
   var boat = buildBoat();
   boat.position.set(startingWorldPosition.x, 0.08, startingWorldPosition.y);
-  boat.rotation.y = Math.PI / 2;
+  boat.rotation.y = 0;
+  boat.scale.setScalar(0.07);
   scene.add(boat);
   loadPirateShip(boat);
   addTaiwan();
@@ -28434,8 +28437,8 @@ void main() {
   var controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.maxPolarAngle = Math.PI * 0.49;
-  controls.minDistance = 10;
-  controls.maxDistance = 160;
+  controls.minDistance = 1.5;
+  controls.maxDistance = 80;
   controls.enabled = false;
   var orbitMode = false;
   var velocity = 0;
@@ -28458,7 +28461,7 @@ void main() {
     if (key === "r" && !event.repeat) {
       velocity = 0;
       boat.position.set(startingWorldPosition.x, 0.08, startingWorldPosition.y);
-      boat.rotation.set(0, Math.PI / 2, 0);
+      boat.rotation.set(0, 0, 0);
     }
     if (key === "t" && !event.repeat) {
       setTimeOfDay(timeOfDay === "morning" ? "night" : "morning");
@@ -28481,10 +28484,10 @@ void main() {
     starboard.set(-forward.y, forward.x);
     const windAlignment = forward.dot(windDirection);
     const throttle = (keys.has("w") ? 1 : 0) - (keys.has("s") ? 1 : 0);
-    const engineForce = throttle > 0 ? 18 : throttle < 0 ? -13 : 0;
-    const windForce = windAlignment * windSpeed * 0.13;
+    const engineForce = throttle > 0 ? 0.03 : throttle < 0 ? -0.022 : 0;
+    const windForce = windAlignment * windSpeed * 5e-4;
     velocity += (engineForce + windForce - velocity * 0.45) * delta;
-    velocity = MathUtils.clamp(velocity, -18, 36);
+    velocity = MathUtils.clamp(velocity, -0.08, 0.11);
     const steer = (keys.has("a") ? 1 : 0) - (keys.has("d") ? 1 : 0);
     boat.rotation.y += steer * delta * (0.36 + Math.abs(velocity) * 0.035) * Math.sign(velocity || 1);
     forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));
@@ -28522,9 +28525,9 @@ void main() {
     water.material.uniforms.time.value += delta * (0.65 + wakeForce * 4.5);
     const atmosphericDrift = elapsed * 0.012;
     const isNight = timeOfDay === "night";
-    const baseElevation = isNight ? 34 : 5;
+    const baseElevation = isNight ? 34 : 18;
     const elevation = baseElevation + Math.sin(atmosphericDrift) * (isNight ? 5 : 4.5);
-    const azimuth = (isNight ? -35 : 180) + atmosphericDrift * (isNight ? 18 : 24);
+    const azimuth = (isNight ? -35 : 0) + atmosphericDrift * (isNight ? 18 : 24);
     sun.setFromSphericalCoords(1, MathUtils.degToRad(90 - elevation), MathUtils.degToRad(azimuth));
     skyUniforms.sunPosition.value.copy(sun);
     water.material.uniforms.sunDirection.value.copy(sun).normalize();
@@ -28533,9 +28536,9 @@ void main() {
     if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = (isNight ? 0.16 : 0.28) + Math.sin(elapsed * 0.09) * 0.035;
     if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = (isNight ? 0.26 : 0.48) + Math.sin(elapsed * 0.07 + 1.2) * 0.045;
     if (!orbitMode) {
-      targetCamera.set(7.8, 9 + wakeForce * 0.7, 25 + wakeForce * 6.5).applyAxisAngle(new Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
+      targetCamera.set(0.5, 0.75 + wakeForce * 0.12, 2.2 + wakeForce * 0.45).applyAxisAngle(new Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
       camera.position.lerp(targetCamera, 1 - Math.pow(6e-4, delta));
-      targetLook.set(0, 2.4, -wakeForce * 5).applyAxisAngle(new Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
+      targetLook.set(0, 0.2, -wakeForce * 0.4).applyAxisAngle(new Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
       camera.lookAt(targetLook);
       camera.rotateZ(-steer * wakeForce * 0.018);
       camera.fov = MathUtils.lerp(camera.fov, 55 + wakeForce * 9, 1 - Math.pow(0.02, delta));
@@ -28544,7 +28547,7 @@ void main() {
       controls.target.lerp(boat.position, 0.08);
       controls.update();
     }
-    speedReadout.textContent = Math.abs(velocity * 1.94).toFixed(1);
+    speedReadout.textContent = Math.abs(velocity * 7775).toFixed(0);
     const compass = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"];
     const windIndex = Math.round(Math.atan2(windDirection.x, windDirection.y) / (Math.PI * 2) * 8 + 8) % 8;
     windReadout.textContent = `WIND \xB7 ${compass[windIndex]} ${windSpeed.toFixed(0)} kn`;
@@ -28558,7 +28561,7 @@ void main() {
     positionReadout.textContent = `${Math.abs(coordinates.latitude).toFixed(3)}\xB0 ${latitudeHemisphere} \xB7 ${Math.abs(coordinates.longitude).toFixed(3)}\xB0 ${longitudeHemisphere}`;
     renderer.render(scene, camera);
   }
-  camera.position.set(7.8, 9, 25);
+  camera.position.set(0.5, 0.75, 2.2);
   setTimeOfDay("morning");
   loading2?.remove();
   renderer.setAnimationLoop(animate);
