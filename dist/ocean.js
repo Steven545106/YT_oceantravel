@@ -271,18 +271,61 @@ const taiwanCoastline = [
 ].map(([latitude, longitude]) => geoToWorld({ latitude, longitude }));
 
 function addTaiwan() {
-  const center = taiwanCoastline.reduce((total, point) => total.add(point), new THREE.Vector2()).multiplyScalar(1 / taiwanCoastline.length);
+  // A stylised relief model of Taiwan's major mountain systems. Heights use
+  // real summit elevations, projected into the same WGS84 navigation space.
+  const mountainPeaks = [
+    { latitude: 24.388, longitude: 121.231, elevationKm: 3.886, radiusKm: 20 }, // Snow Mountain
+    { latitude: 24.360, longitude: 121.440, elevationKm: 3.742, radiusKm: 16 }, // Nanhu Dashan
+    { latitude: 23.470, longitude: 120.957, elevationKm: 3.952, radiusKm: 22 }, // Yushan
+    { latitude: 23.560, longitude: 121.250, elevationKm: 3.303, radiusKm: 22 }, // Central Range
+    { latitude: 23.260, longitude: 120.950, elevationKm: 3.666, radiusKm: 19 }, // Guanshan
+    { latitude: 22.627, longitude: 120.760, elevationKm: 3.092, radiusKm: 17 }  // Beidawu
+  ];
+  const terrainHeight = (x, z) => {
+    const position = worldToGeo(x, z);
+    return mountainPeaks.reduce((height, peak) => {
+      const northSouth = (position.latitude - peak.latitude) * KM_PER_LATITUDE_DEGREE;
+      const eastWest = (position.longitude - peak.longitude) * KM_PER_LONGITUDE_DEGREE;
+      const distanceKm = Math.hypot(northSouth, eastWest);
+      const summitHeight = peak.elevationKm * WORLD_UNITS_PER_KM * 1.15;
+      return height + summitHeight * Math.exp(-(distanceKm * distanceKm) / (2 * peak.radiusKm * peak.radiusKm));
+    }, .035);
+  };
+  const bounds = taiwanCoastline.reduce((result, point) => ({
+    minX: Math.min(result.minX, point.x), maxX: Math.max(result.maxX, point.x),
+    minZ: Math.min(result.minZ, point.y), maxZ: Math.max(result.maxZ, point.y)
+  }), { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
+  const step = .62;
   const vertices = [];
-  for (let index = 0; index < taiwanCoastline.length - 1; index++) {
-    const a = taiwanCoastline[index];
-    const b = taiwanCoastline[index + 1];
-    vertices.push(center.x, .35, center.y, a.x, .35, a.y, b.x, .35, b.y);
+  const colors = [];
+  const colorForHeight = (height) => {
+    const color = new THREE.Color();
+    if (height < .18) color.setHex(0x6f9b58);
+    else if (height < .62) color.setHex(0x356339);
+    else if (height < 1.05) color.setHex(0x718060);
+    else color.setHex(0xb8b6a5);
+    return color;
+  };
+  const addVertex = (x, z) => {
+    const height = terrainHeight(x, z);
+    const color = colorForHeight(height);
+    vertices.push(x, height, z);
+    colors.push(color.r, color.g, color.b);
+  };
+  for (let z = bounds.minZ; z < bounds.maxZ; z += step) {
+    for (let x = bounds.minX; x < bounds.maxX; x += step) {
+      const corners = [[x, z], [x + step, z], [x + step, z + step], [x, z + step]];
+      if (!corners.every(([pointX, pointZ]) => isOnTaiwan(pointX, pointZ))) continue;
+      addVertex(...corners[0]); addVertex(...corners[1]); addVertex(...corners[2]);
+      addVertex(...corners[0]); addVertex(...corners[2]); addVertex(...corners[3]);
+    }
   }
   const geometry = new THREE.BufferGeometry();
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
   const island = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-    color: 0x6f9b58,
+    vertexColors: true,
     roughness: .92,
     metalness: 0,
     flatShading: true,
