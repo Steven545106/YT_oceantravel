@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#071d38" />
+    <title>Ocean Drift</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <main id="app">
+      <div class="vignette" aria-hidden="true"></div>
+      <header class="hud">
+        <div>
+          <p class="eyebrow">OPEN WATER</p>
+          <h1>Ocean Drift</h1>
+          <p id="mood" class="mood">EARLY MORNING</p>
+        </div>
+        <div class="readout" aria-live="polite">
+          <span>SPEED</span>
+          <strong id="speed">0.0</strong><small> knots</small>
+          <small id="wind" class="wind">WIND · NE 14 kn</small>
+          <small id="position" class="position">24.070° N · 122.000° E</small>
+        </div>
+      </header>
+
+      <aside class="compass" aria-label="航向羅盤">
+        <div class="compass-needle" aria-hidden="true"></div>
+        <div id="compass-dial" class="compass-dial" aria-hidden="true">
+          <b class="north">N</b><b class="east">E</b><b class="south">S</b><b class="west">W</b>
+        </div>
+        <span id="heading">000° N</span>
+      </aside>
+
+      <aside class="controls" aria-label="操作說明">
+        <span><kbd>W</kbd><kbd>S</kbd> 前進／倒退</span>
+        <span><kbd>A</kbd><kbd>D</kbd> 轉向</span>
+        <span><kbd>C</kbd> 切換視角　<kbd>R</kbd> 回到台灣東岸外海</span>
+        <span><kbd>T</kbd> 清晨／夜晚</span>
+      </aside>
+
+      <div id="loading" class="loading">正在生成海面…</div>
+    </main>
+    <script defer src="./app.js?v=2"></script>
+    <script defer src="./ocean.bundle.js?v=14"></script>
+  </body>
+</html>
