@@ -28504,6 +28504,7 @@ void main() {
   controls.maxDistance = 80;
   controls.enabled = false;
   var orbitMode = false;
+  var topDownMode = false;
   var velocity = 0;
   var collisionPulse = 0;
   var keys = /* @__PURE__ */ new Set();
@@ -28518,8 +28519,14 @@ void main() {
     keys.add(key);
     if (key === "c" && !event.repeat) {
       orbitMode = !orbitMode;
+      topDownMode = false;
       controls.enabled = orbitMode;
       if (orbitMode) controls.target.copy(boat.position);
+    }
+    if (key === "v" && !event.repeat) {
+      topDownMode = !topDownMode;
+      orbitMode = false;
+      controls.enabled = false;
     }
     if (key === "r" && !event.repeat) {
       velocity = 0;
@@ -28598,7 +28605,13 @@ void main() {
     moon.position.copy(sun).multiplyScalar(5e3);
     if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = (isNight ? 0.16 : 0.28) + Math.sin(elapsed * 0.09) * 0.035;
     if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = (isNight ? 0.26 : 0.48) + Math.sin(elapsed * 0.07 + 1.2) * 0.045;
-    if (!orbitMode) {
+    if (topDownMode) {
+      targetCamera.set(0, 58, 0.01).add(boat.position);
+      camera.position.lerp(targetCamera, 1 - Math.pow(2e-4, delta));
+      camera.lookAt(boat.position.x, 0, boat.position.z);
+      camera.fov = MathUtils.lerp(camera.fov, 45, 1 - Math.pow(0.02, delta));
+      camera.updateProjectionMatrix();
+    } else if (!orbitMode) {
       targetCamera.set(0.5, 0.75 + wakeForce * 0.12, 2.2 + wakeForce * 0.45).applyAxisAngle(new Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
       camera.position.lerp(targetCamera, 1 - Math.pow(6e-4, delta));
       targetLook.set(0, 0.2, -wakeForce * 0.4).applyAxisAngle(new Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
