@@ -64,6 +64,14 @@ const water = new Water(new THREE.PlaneGeometry(10000, 10000), {
 });
 water.rotation.x = -Math.PI / 2;
 water.material.uniforms.size.value = 1.1;
+// Keep the ocean animated without mirroring nearby scene objects.
+const reflectionCanvas = document.createElement('canvas');
+reflectionCanvas.width = reflectionCanvas.height = 1;
+const reflectionContext = reflectionCanvas.getContext('2d');
+reflectionContext.fillStyle = '#16384b';
+reflectionContext.fillRect(0, 0, 1, 1);
+water.material.uniforms.mirrorSampler.value = new THREE.CanvasTexture(reflectionCanvas);
+water.onBeforeRender = () => {};
 scene.add(water);
 
 const sky = new Sky();
@@ -299,32 +307,55 @@ function addTaiwan() {
     minX: Math.min(result.minX, point.x), maxX: Math.max(result.maxX, point.x),
     minZ: Math.min(result.minZ, point.y), maxZ: Math.max(result.maxZ, point.y)
   }), { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
-  const step = .62;
+  // A fine terrain grid keeps the shoreline from looking like stair steps,
+  // while shared vertices let Three.js interpolate one continuous surface.
+  const step = .06;
   const vertices = [];
   const colors = [];
+  const indices = [];
+  const vertexIndices = new Map();
   const colorForHeight = (height) => {
-    const color = new THREE.Color();
-    if (height < .18) color.setHex(0x6f9b58);
-    else if (height < .62) color.setHex(0x356339);
-    else if (height < 1.05) color.setHex(0x718060);
-    else color.setHex(0xb8b6a5);
-    return color;
+    const stops = [
+      [.08, 0x7ca66d], // coastal plain
+      [.42, 0x315f36], // foothills
+      [.92, 0x64775a], // mountain forest
+      [1.36, 0xa7aa99] // high, exposed ridges
+    ];
+    const upper = stops.findIndex(([altitude]) => height <= altitude);
+    if (upper <= 0) return new THREE.Color(stops[0][1]);
+    if (upper < 0) return new THREE.Color(stops.at(-1)[1]);
+    const [lowAltitude, lowColor] = stops[upper - 1];
+    const [highAltitude, highColor] = stops[upper];
+    return new THREE.Color(lowColor).lerp(
+      new THREE.Color(highColor),
+      THREE.MathUtils.smoothstep(height, lowAltitude, highAltitude)
+    );
   };
   const addVertex = (x, z) => {
+    const key = `${x.toFixed(3)}:${z.toFixed(3)}`;
+    const existing = vertexIndices.get(key);
+    if (existing !== undefined) return existing;
     const height = terrainHeight(x, z);
     const color = colorForHeight(height);
     vertices.push(x, height, z);
     colors.push(color.r, color.g, color.b);
+    const index = vertices.length / 3 - 1;
+    vertexIndices.set(key, index);
+    return index;
   };
   for (let z = bounds.minZ; z < bounds.maxZ; z += step) {
     for (let x = bounds.minX; x < bounds.maxX; x += step) {
       const corners = [[x, z], [x + step, z], [x + step, z + step], [x, z + step]];
       if (!corners.every(([pointX, pointZ]) => isOnTaiwan(pointX, pointZ))) continue;
-      addVertex(...corners[0]); addVertex(...corners[1]); addVertex(...corners[2]);
-      addVertex(...corners[0]); addVertex(...corners[2]); addVertex(...corners[3]);
+      const a = addVertex(...corners[0]);
+      const b = addVertex(...corners[1]);
+      const c = addVertex(...corners[2]);
+      const d = addVertex(...corners[3]);
+      indices.push(a, b, c, a, c, d);
     }
   }
   const geometry = new THREE.BufferGeometry();
+  geometry.setIndex(indices);
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
   geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
   geometry.computeVertexNormals();
@@ -332,7 +363,7 @@ function addTaiwan() {
     vertexColors: true,
     roughness: .92,
     metalness: 0,
-    flatShading: true,
+    flatShading: false,
     side: THREE.DoubleSide,
     emissive: 0x142912,
     emissiveIntensity: .35

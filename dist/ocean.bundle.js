@@ -28205,6 +28205,14 @@ void main() {
   });
   water.rotation.x = -Math.PI / 2;
   water.material.uniforms.size.value = 1.1;
+  var reflectionCanvas = document.createElement("canvas");
+  reflectionCanvas.width = reflectionCanvas.height = 1;
+  var reflectionContext = reflectionCanvas.getContext("2d");
+  reflectionContext.fillStyle = "#16384b";
+  reflectionContext.fillRect(0, 0, 1, 1);
+  water.material.uniforms.mirrorSampler.value = new CanvasTexture(reflectionCanvas);
+  water.onBeforeRender = () => {
+  };
   scene.add(water);
   var sky = new Sky();
   sky.scale.setScalar(1e4);
@@ -28416,36 +28424,53 @@ void main() {
       minX: Math.min(result.minX, point.x), maxX: Math.max(result.maxX, point.x),
       minZ: Math.min(result.minZ, point.y), maxZ: Math.max(result.maxZ, point.y)
     }), { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
-    const step = 0.62;
+    const step = 0.06;
     const vertices = [];
     const colors = [];
+    const indices = [];
+    const vertexIndices = /* @__PURE__ */ new Map();
     const colorForHeight = (height) => {
-      const color = new Color();
-      if (height < 0.18) color.setHex(7314264);
-      else if (height < 0.62) color.setHex(3498809);
-      else if (height < 1.05) color.setHex(7438432);
-      else color.setHex(12170917);
-      return color;
+      const stops = [
+        [0.08, 8169069],
+        [0.42, 3235638],
+        [0.92, 6584154],
+        [1.36, 10922649]
+      ];
+      const upper = stops.findIndex(([altitude]) => height <= altitude);
+      if (upper <= 0) return new Color(stops[0][1]);
+      if (upper < 0) return new Color(stops.at(-1)[1]);
+      const [lowAltitude, lowColor] = stops[upper - 1];
+      const [highAltitude, highColor] = stops[upper];
+      return new Color(lowColor).lerp(
+        new Color(highColor),
+        MathUtils.smoothstep(height, lowAltitude, highAltitude)
+      );
     };
     const addVertex = (x, z) => {
+      const key = `${x.toFixed(3)}:${z.toFixed(3)}`;
+      const existing = vertexIndices.get(key);
+      if (existing !== void 0) return existing;
       const height = terrainHeight(x, z);
       const color = colorForHeight(height);
       vertices.push(x, height, z);
       colors.push(color.r, color.g, color.b);
+      const index = vertices.length / 3 - 1;
+      vertexIndices.set(key, index);
+      return index;
     };
     for (let z = bounds.minZ; z < bounds.maxZ; z += step) {
       for (let x = bounds.minX; x < bounds.maxX; x += step) {
         const corners = [[x, z], [x + step, z], [x + step, z + step], [x, z + step]];
         if (!corners.every(([pointX, pointZ]) => isOnTaiwan(pointX, pointZ))) continue;
-        addVertex(...corners[0]);
-        addVertex(...corners[1]);
-        addVertex(...corners[2]);
-        addVertex(...corners[0]);
-        addVertex(...corners[2]);
-        addVertex(...corners[3]);
+        const a = addVertex(...corners[0]);
+        const b = addVertex(...corners[1]);
+        const c = addVertex(...corners[2]);
+        const d = addVertex(...corners[3]);
+        indices.push(a, b, c, a, c, d);
       }
     }
     const geometry = new BufferGeometry();
+    geometry.setIndex(indices);
     geometry.setAttribute("position", new Float32BufferAttribute(vertices, 3));
     geometry.setAttribute("color", new Float32BufferAttribute(colors, 3));
     geometry.computeVertexNormals();
@@ -28453,7 +28478,7 @@ void main() {
       vertexColors: true,
       roughness: 0.92,
       metalness: 0,
-      flatShading: true,
+      flatShading: false,
       side: 2,
       emissive: 1321234,
       emissiveIntensity: 0.35
