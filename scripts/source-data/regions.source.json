@@ -5,7 +5,7 @@
   "demTileDegrees": 2,
   "overviewPixelsPerDegree": 40,
   "demMaxMeters": 4000,
-  "worldBounds": { "minX": -490, "maxX": 900, "minZ": -760, "maxZ": 520 },
+  "worldBounds": { "minX": -490, "maxX": 900, "minZ": -760, "maxZ": 745 },
   "nav": { "cell": 2, "barrierKm": 12 },
   "exaggeration": { "default": 1.15, "areas": [{ "bounds": [119.95, 21.7, 122.3, 25.5], "value": 1.9 }] },
   "countries": [
@@ -26,7 +26,13 @@
     { "code": "vn", "name": "越南", "label": "VIETNAM", "coast": "vietnam_coast.json", "reliefStep": 0.2, "unlock": ["circumJapan"],
       "aliases": ["越南", "Vietnam", "Viet Nam", "VN", "Việt Nam", "越南社會主義共和國"] },
     { "code": "ph", "name": "菲律賓", "label": "PHILIPPINES", "coast": "philippines_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "arrival": "philippinesArrival",
-      "aliases": ["菲律賓", "菲律宾", "Philippines", "PH", "呂宋", "Luzon"] }
+      "aliases": ["菲律賓", "菲律宾", "Philippines", "PH", "呂宋", "Luzon"] },
+    { "code": "bn", "name": "汶萊", "label": "BRUNEI", "coast": "brunei_coast.json", "reliefStep": 0.1, "unlock": ["master:韓國", "master:北韓"],
+      "aliases": ["汶萊", "汶莱", "文萊", "Brunei", "BN", "Brunei Darussalam"] },
+    { "code": "my", "name": "馬來西亞", "label": "MALAYSIA", "coast": "malaysia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"],
+      "aliases": ["馬來西亞", "马来西亚", "大馬", "Malaysia", "MY", "沙巴", "Sabah", "砂拉越", "Sarawak"] },
+    { "code": "id", "name": "印尼", "label": "INDONESIA", "coast": "indonesia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"],
+      "aliases": ["印尼", "印度尼西亞", "印度尼西亚", "Indonesia", "ID", "加里曼丹", "Kalimantan"] }
   ],
   "circuits": [
     { "id": "circumTaiwan", "title": "環台一圈", "country": "tw", "area": "台灣", "centre": [23.7, 121.0], "saveKey": "sectors" },
@@ -36,6 +42,7 @@
   "dem": [
     { "id": "cn", "file": "china_dem.png", "bounds": [104.3, 18.0, 126.0, 43.6], "quality": 90 },
     { "id": "vn", "file": "vietnam_dem.png", "bounds": [102.1, 8.3, 109.6, 23.5], "quality": 90 },
+    { "id": "bo", "file": "borneo_dem.png", "bounds": [108.3, -4.4, 119.6, 7.6], "quality": 90 },
     { "id": "tw", "file": "taiwan_dem.png", "bounds": [118.0, 21.8, 122.1, 26.5] },
     { "id": "ph", "file": "philippines_dem.png", "bounds": [116.8, 4.3, 127.0, 21.4], "quality": 90 },
     { "id": "ea", "file": "japan_dem.webp", "bounds": [122.9, 24.0, 154.1, 45.7], "quality": 90 }

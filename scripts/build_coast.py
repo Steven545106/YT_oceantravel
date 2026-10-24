@@ -12,7 +12,7 @@ zones of regions listed before it. Land already in another country's coast file 
 Yalu), and islands left mostly cut away (Kinmen and Matsu, in taiwan_coast.json) are dropped.
 
 Needs shapely and pyshp (pip install shapely pyshp). Run from the project root, e.g.:
-  <venv>/bin/python scripts/build_coast.py <preset: vietnam | china | philippines> <land-polygons-split-4326 folder>
+  <venv>/bin/python scripts/build_coast.py <preset: vietnam | china | philippines | borneo> <land-polygons-split-4326 folder>
 Boundary and province files are read from scripts/source-data/boundaries.
 """
 import json
@@ -33,7 +33,8 @@ BOUNDARIES = os.path.join(SOURCE, 'boundaries')
 # One preset per data run. area: lon0, lat0, lon1, lat1 searched in the OSM data; exclude: coast files whose land is
 # already another country's; provinces: geoBoundaries outlines for province-based zones; exact: province names that
 # have exact boundary files instead; regions: (output file, exact boundary file or province names, how far to widen
-# provinces in degrees), earlier regions win.
+# provinces in degrees; '*' takes what is left of the area), earlier regions win. drop_cut: drop islands the area's edge
+# cuts through; skip: boxes whose islands are left out.
 PRESETS = {
     'china': {
         'area': (104.3, 18.0, 126.0, 43.6),
@@ -57,6 +58,19 @@ PRESETS = {
         'area': (102.1, 8.3, 109.6, 23.5),
         'exclude': [],
         'regions': [('vietnam_coast.json', 'vn.geojson', 0)],
+    },
+    # Borneo: Brunei and Malaysia (Sabah, Sarawak, Labuan) inside their OSM boundaries, the rest is Indonesia
+    # (Kalimantan and nearby islets). Sulawesi's west coast, which the search area clips, is skipped.
+    'borneo': {
+        'area': (108.3, -4.4, 119.6, 7.6),
+        'exclude': ['philippines_coast.json'],
+        'drop_cut': True,
+        'skip': [(118.4, -4.4, 119.6, .8)],
+        'regions': [
+            ('brunei_coast.json', 'bn.geojson', 0),
+            ('malaysia_coast.json', 'my.geojson', 0),
+            ('indonesia_coast.json', '*', 0),
+        ],
     },
     'philippines': {
         'area': (116.8, 4.3, 127.0, 21.4),
@@ -116,7 +130,9 @@ def main(preset_name, land_folder):
 
     taken = None
     for file, names, widen in preset['regions']:
-        if isinstance(names, str):
+        if names == '*':
+            zone = region_box   # whatever earlier regions did not take
+        elif isinstance(names, str):
             zone = shape(json.load(open(os.path.join(BOUNDARIES, names)))['geometry']).buffer(0).intersection(region_box)
         else:
             own = unary_union([provinces[n] for n in names])
@@ -138,8 +154,13 @@ def main(preset_name, land_folder):
                 kept += [rest] if isinstance(rest, Polygon) else [g for g in getattr(rest, 'geoms', []) if isinstance(g, Polygon)]
             else:
                 kept.append(polygon)
+        edge = region_box.exterior.buffer(1e-6)
         for polygon in kept:
             if area_km2(polygon) < MIN_AREA_KM2:
+                continue
+            if preset.get('drop_cut') and polygon.intersects(edge):
+                continue   # an island cut through by the search area belongs to a later run
+            if any(box(*b).contains(polygon.representative_point()) for b in preset.get('skip', [])):
                 continue
             outline = polygon.exterior.simplify(SIMPLIFY_DEG, preserve_topology=False)
             coords = list(outline.coords)[:-1]
