@@ -1,12 +1,14 @@
 """Build a whole world region in one go: coastlines per country, a heightmap, place names and registry entries.
 
 For a region in scripts/source-data/world_regions.json this:
-  1. cuts OpenStreetMap land inside the area into 2° cells, minus land already in the `exclude` coast files;
+  1. cuts OpenStreetMap land inside the area (one box, or several, e.g. either side of the 180° meridian) into 2° cells,
+     minus land already in the `exclude` coast files;
   2. gives each piece of land to a country with the Natural Earth 1:10m country outlines: land inside an outline is that
      country's, land outside every outline (coast the 1 km outlines miss, small islands) goes to the nearest country
      within NEAREST_DEG; only the region's `countries` are kept;
   3. writes scripts/source-data/<country>_coast.json for each of them (replacing older files of the same name);
-  4. builds scripts/source-data/<region>_dem.png from AWS Terrain Tiles (scripts/build_dem.py);
+  4. builds scripts/source-data/<region>_dem.png from AWS Terrain Tiles (scripts/build_dem.py), or one heightmap per
+     `dem.boxes` entry for regions of scattered islands, fetching only tiles near the region's land;
   5. adds each country's place names from GeoNames (scripts/build_places.py), downloading the dumps it needs;
   6. adds countries missing from regions.source.json (code, Chinese and English names, aliases, coast file, unlock) and
      the heightmap to its `dem` list.
@@ -29,6 +31,7 @@ import zipfile
 import shapefile
 from shapely.geometry import shape, box, Polygon
 from shapely.ops import unary_union
+from shapely.prepared import prep
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, 'scripts', 'source-data')
@@ -79,9 +82,15 @@ def file_name(english):
     return re.sub(r'[^a-z]+', '_', english.lower()).strip('_') + '_coast.json'
 
 
+def area_boxes(region):
+    area = region['area']
+    return area if isinstance(area[0], list) else [area]
+
+
 def build_coasts(region, land_folder, ne_folder):
-    lon0, lat0, lon1, lat1 = region['area']
-    area = box(lon0, lat0, lon1, lat1)
+    boxes = area_boxes(region)
+    area = unary_union([box(*b) for b in boxes])
+    near = lambda x0, y0, x1, y1, pad: any(x1 >= b[0] - pad and x0 <= b[2] + pad and y1 >= b[1] - pad and y0 <= b[3] + pad for b in boxes)
     reader = shapefile.Reader(os.path.join(ne_folder, 'ne_10m_admin_0_countries'))
     fields = [f[0] for f in reader.fields[1:]]
     outlines, names = {}, {}
@@ -89,10 +98,13 @@ def build_coasts(region, land_folder, ne_folder):
         info = dict(zip(fields, record.record))
         code = info['ISO_A2_EH']
         x0, y0, x1, y1 = record.shape.bbox
-        if x1 < lon0 - 2 or x0 > lon1 + 2 or y1 < lat0 - 2 or y0 > lat1 + 2 or code in ('-99', ''):
+        if not near(x0, y0, x1, y1, 2) or code in ('-99', ''):
             continue
-        outlines[code] = shape(record.shape.__geo_interface__).buffer(0)
-        names[code] = {'en': info['NAME_EN'], 'zht': info['NAME_ZHT'], 'zh': info['NAME_ZH'], 'long': info['NAME_LONG']}
+        # a code can have several records (Australia's Coral Sea and Ashmore islands): keep them all, name the first
+        outline = shape(record.shape.__geo_interface__).buffer(0)
+        outlines[code] = outlines[code].union(outline) if code in outlines else outline
+        if code not in names:
+            names[code] = {'en': info['NAME_EN'], 'zht': region.get('names', {}).get(code, info['NAME_ZHT']), 'zh': info['NAME_ZH'], 'long': info['NAME_LONG']}
     excluded = []
     for name in region['exclude']:
         for flat in json.load(open(os.path.join(SOURCE, name)))['polys']:
@@ -105,16 +117,23 @@ def build_coasts(region, land_folder, ne_folder):
     reader = shapefile.Reader(os.path.join(land_folder, 'land_polygons'))
     for shp in reader.iterShapes():
         x0, y0, x1, y1 = shp.bbox
-        if x1 < lon0 or x0 > lon1 or y1 < lat0 or y0 > lat1:
+        if not near(x0, y0, x1, y1, 0):
             continue
         piece = shape(shp.__geo_interface__)
-        for cx in range(math.floor(max(x0, lon0) / CELL), math.floor(min(x1, lon1) / CELL) + 1):
-            for cy in range(math.floor(max(y0, lat0) / CELL), math.floor(min(y1, lat1) / CELL) + 1):
-                cells.setdefault((cx, cy), []).append(piece)
+        for cx in range(math.floor(x0 / CELL), math.floor(x1 / CELL) + 1):
+            for cy in range(math.floor(y0 / CELL), math.floor(y1 / CELL) + 1):
+                if near(cx * CELL, cy * CELL, (cx + 1) * CELL, (cy + 1) * CELL, 0):
+                    cells.setdefault((cx, cy), []).append(piece)
     kept = {code: [] for code in region['countries']}
+    all_land = []
     for (cx, cy), pieces in sorted(cells.items()):
         cell = box(cx * CELL, cy * CELL, (cx + 1) * CELL, (cy + 1) * CELL).intersection(area)
-        land = unary_union(pieces).intersection(cell).difference(excluded)
+        if cell.is_empty or cell.area == 0:
+            continue
+        whole = unary_union(pieces).intersection(cell)
+        # every country's land, not just the kept ones: a heightmap must not flatten a neighbour where they overlap
+        all_land.append(whole)
+        land = whole.difference(excluded)
         if land.is_empty:
             continue
         here = {code: outline for code, outline in outlines.items() if outline.intersects(cell.buffer(NEAREST_DEG))}
@@ -141,7 +160,7 @@ def build_coasts(region, land_folder, ne_folder):
         files[code] = file_name(names[code]['en'])
         json.dump({'scale': SCALE, 'polys': polys}, open(os.path.join(SOURCE, files[code]), 'w'), separators=(',', ':'))
         print(f"{files[code]}: {len(polys)} islands, {sum(len(p) for p in polys) // 2} vertices")
-    return files, names
+    return files, names, unary_union(all_land)
 
 
 def fetch_geonames(code, cache):
@@ -155,7 +174,7 @@ def fetch_geonames(code, cache):
     return text
 
 
-def update_registry(region_name, region, files, names, dem_file):
+def update_registry(region_name, region, files, names, dems):
     """Append countries the registry lacks, point existing ones at their new coast file, and list the heightmap."""
     path = os.path.join(SOURCE, 'regions.source.json')
     text = open(path, encoding='utf-8').read()
@@ -176,11 +195,11 @@ def update_registry(region_name, region, files, names, dem_file):
     if added:
         end = text.index('\n  ],\n  "circuits"')
         text = text[:end] + ',\n' + ',\n'.join(added) + text[end:]
-    if f'"{dem_file}"' not in text:
-        lon0, lat0, lon1, lat1 = region['area']
-        entry = json.dumps({'id': region_name, 'file': dem_file, 'bounds': [lon0, lat0, lon1, lat1], 'quality': 90})
-        start = text.index('  "dem": [\n') + len('  "dem": [\n')
-        text = text[:start] + '    ' + entry + ',\n' + text[start:]
+    for dem_id, dem_file, bounds in dems:
+        if f'"{dem_file}"' not in text:
+            entry = json.dumps({'id': dem_id, 'file': dem_file, 'bounds': bounds, 'quality': 90})
+            start = text.index('  "dem": [\n') + len('  "dem": [\n')
+            text = text[:start] + '    ' + entry + ',\n' + text[start:]
     json.loads(text)
     open(path, 'w', encoding='utf-8').write(text)
     print(f'registry: {len(added)} countries added')
@@ -188,10 +207,18 @@ def update_registry(region_name, region, files, names, dem_file):
 
 def main(region_name, land_folder, ne_folder, cache):
     region = json.load(open(os.path.join(SOURCE, 'world_regions.json')))['regions'][region_name]
-    files, names = build_coasts(region, land_folder, ne_folder)
-    lon0, lat0, lon1, lat1 = region['area']
-    dem_file = f"{region_name.replace('-', '_')}_dem.png"
-    load_script('build_dem').main(dem_file, region['dem']['zoom'], lon0, lon1, lat0, lat1, region['dem']['pixelsPerDegree'], os.path.join(cache, 'terrarium'))
+    files, names, land = build_coasts(region, land_folder, ne_folder)
+    # one heightmap over the area, or one per `dem.boxes` entry (id: [lon0, lat0, lon1, lat1] or [..., pixels per degree])
+    boxes = region['dem'].get('boxes') or {'': area_boxes(region)[0]}
+    land, dems = prep(land), []
+    for box_id, bounds in boxes.items():
+        dem_id = f'{region_name}-{box_id}' if box_id else region_name
+        dem_file = f"{dem_id.replace('-', '_')}_dem.png"
+        lon0, lat0, lon1, lat1 = bounds[:4]
+        ppd = bounds[4] if len(bounds) > 4 else region['dem']['pixelsPerDegree']
+        load_script('build_dem').main(dem_file, region['dem']['zoom'], lon0, lon1, lat0, lat1, ppd, os.path.join(cache, 'terrarium'),
+                                      keep=lambda x0, y0, x1, y1: land.intersects(box(x0 - .05, y0 - .05, x1 + .05, y1 + .05)))
+        dems.append((dem_id, dem_file, [lon0, lat0, lon1, lat1]))
     places = load_script('build_places')
     registry = {c['code']: c for c in json.load(open(os.path.join(SOURCE, 'regions.source.json')))['countries']}
     for code in region['countries']:
@@ -199,7 +226,7 @@ def main(region_name, land_folder, ne_folder, cache):
         name = known['name'] if known else names[code]['zht']
         aliases = known['aliases'] if known else list(dict.fromkeys([names[code]['zht'], names[code]['zh'], names[code]['en'], code]))
         places.main(name, files[code], fetch_geonames(code, cache), *aliases)
-    update_registry(region_name, region, files, names, dem_file)
+    update_registry(region_name, region, files, names, dems)
 
 
 if __name__ == '__main__':

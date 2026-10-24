@@ -34,15 +34,28 @@ def fetch(z, x, y, cache):
     return rgb[..., 0] * 256 + rgb[..., 1] + rgb[..., 2] / 256 - 32768
 
 
-def main(name, z, lon0, lon1, lat0, lat1, ppd, cache):
+def tile_lon(x, z):
+    return x / 2 ** z * 360 - 180
+
+
+def tile_lat(y, z):
+    return math.degrees(math.atan(math.sinh(math.pi * (1 - 2 * y / 2 ** z))))
+
+
+def main(name, z, lon0, lon1, lat0, lat1, ppd, cache, keep=None):
+    """`keep(lon0, lat0, lon1, lat1)`, if given, says whether a tile is worth fetching; the others stay sea level."""
     z, ppd = int(z), float(ppd)
     lon0, lon1, lat0, lat1 = map(float, (lon0, lon1, lat0, lat1))
     os.makedirs(cache, exist_ok=True)
     tx0, ty0 = (int(v) for v in tile_xy(lon0, lat1, z))
-    tx1, ty1 = (int(v) for v in tile_xy(lon1, lat0, z))
-    mosaic = np.zeros(((ty1 - ty0 + 1) * 256, (tx1 - tx0 + 1) * 256))
+    tx1, ty1 = (min(2 ** z - 1, int(v)) for v in tile_xy(lon1, lat0, z))
+    mosaic = np.zeros(((ty1 - ty0 + 1) * 256, (tx1 - tx0 + 1) * 256), dtype=np.float32)
+    fetched = 0
     for ty in range(ty0, ty1 + 1):
         for tx in range(tx0, tx1 + 1):
+            if keep and not keep(tile_lon(tx, z), tile_lat(ty + 1, z), tile_lon(tx + 1, z), tile_lat(ty, z)):
+                continue
+            fetched += 1
             mosaic[(ty - ty0) * 256:(ty - ty0 + 1) * 256, (tx - tx0) * 256:(tx - tx0 + 1) * 256] = fetch(z, tx, ty, cache)
     width, height = round((lon1 - lon0) * ppd) + 1, round((lat1 - lat0) * ppd) + 1
     lons = lon0 + np.arange(width) / (width - 1) * (lon1 - lon0)
@@ -57,7 +70,7 @@ def main(name, z, lon0, lon1, lat0, lat1, ppd, cache):
     elevation = (mosaic[y0, x0] * (1 - fx) + mosaic[y0, x0 + 1] * fx) * (1 - fy) + (mosaic[y0 + 1, x0] * (1 - fx) + mosaic[y0 + 1, x0 + 1] * fx) * fy
     encoded = np.sqrt(np.clip(elevation, 0, MAX_METERS) / MAX_METERS) * 255
     Image.fromarray(np.round(encoded).astype(np.uint8), 'L').save(os.path.join(ROOT, 'scripts', 'source-data', name), optimize=True)
-    print(f'{name}: {width}x{height}, {(tx1 - tx0 + 1) * (ty1 - ty0 + 1)} tiles at z{z}')
+    print(f'{name}: {width}x{height}, {fetched} tiles at z{z}')
 
 
 if __name__ == '__main__':

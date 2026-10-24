@@ -104,22 +104,41 @@ def wikidata_names(gids, cache_path):
         json.dump(cache, open(cache_path, 'w'), ensure_ascii=False)
         print(f'wikidata {min(start + 300, len(todo))}/{len(todo)}')
         time.sleep(1)
-    return {int(k): s2t.convert(v) for k, v in cache.items() if v}
+    return {int(k): clean_label(s2t.convert(v)) for k, v in cache.items() if v}
+
+
+# Wikidata labels are often mainland or Hong Kong usage; Taiwan's usual names for the same places
+TAIWAN_TERMS = {'悉尼': '雪梨', '澳大利亞': '澳洲', '新西蘭': '紐西蘭', '布里斯班': '布里斯本', '塔斯曼尼亞': '塔斯馬尼亞', '羣': '群'}
+
+
+def clean_label(label):
+    """Drop disambiguation ("大三角帆島 (澳大利亞)") and council names ("布里斯本市政府"), use Taiwan's terms."""
+    label = re.sub(r'\s*[（(][^）)]*[)）]$', '', label)
+    label = re.sub(r'(?<=[市區郡縣])政府$', '', label)
+    for a, b in TAIWAN_TERMS.items():
+        label = label.replace(a, b)
+    return label
 
 
 # --- Made-up names ------------------------------------------------------------------------------------------------
 # Generic words (after accents are stripped, lower case) and what they become; `prefix` words such as directions go in
 # front of the name, the rest after it.
 SUFFIX = {
-    '島': 'pulau pulo nusa gili ko koh kho ada adasi jazirat jazireh jezireh jazira jaziratu dao hon con island isle islet isla ilha cay kyun motu tau pu',
-    '群島': 'kepulauan gugusan islands adalari jaza\'ir jazair archipelago quan',
+    '島': 'pulau pulo nusa gili ko koh kho ile ilot ada adasi jazirat jazireh jezireh jazira jaziratu dao hon con island isle islet isla ilha cay kyun motu tau pu',
+    '群島': 'kepulauan gugusan islands iles ilots adalari jaza\'ir jazair archipelago quan',
     '灣': 'teluk ao vinh korfezi koyu khawr khor bay gulf baie khalij cove inlet sound bight',
     '角': 'tanjung tanjong tg laem mui burnu ras cape point punta ujung head headland',
     '港': 'pelabuhan port harbour harbor limani mina wharf',
     '燈塔': 'lighthouse fanar mercusuar',
     '礁': 'rock rocks reef shoal karang batu',
+    '環礁': 'atoll',
+    '潟湖': 'lagoon',
+    '灘': 'beach',
+    '溪': 'creek brook',
+    '瀑布': 'falls waterfall',
+    '山脈': 'range ranges',
     '半島': 'peninsula semenanjung yarimadasi',
-    '山': 'mount mountain gunung bukit dagi tepe jabal kuh',
+    '山': 'mount mt hill mountain gunung bukit dagi tepe jabal kuh',
     '縣': 'kabupaten amphoe huyen shahrestan daerah zila regency county',
     '市': 'kota city municipality mueang thanhpho thixa sehir',
     '區': 'kecamatan district ilcesi khet tambon tehsil upazila qada qadaa division subdistrict borough markaz',
@@ -133,10 +152,10 @@ SUFFIX = {
     '水道': 'channel',
 }
 PREFIX = {
-    '北': 'north northern utara nuea kuzey bac shamali',
-    '南': 'south southern selatan tai guney janubi',
+    '北': 'north northern nord utara nuea kuzey bac shamali',
+    '南': 'south southern sud selatan tai guney janubi',
     '東': 'east eastern timur dogu sharqi',
-    '西': 'west western barat bati gharbi',
+    '西': 'west western ouest barat bati gharbi',
     '中': 'central tengah wusta',
     '大': 'great big besar gede kabir buyuk lon',
     '小': 'little small kecil saghir kucuk nho',
@@ -147,6 +166,8 @@ PREFIX = {
 }
 DROP = {'of', 'the', 'de', 'historical'}
 ARTICLES = {'al', 'el', 'ad', 'ar', 'as', 'ash', 'at', 'az', 'an', 'adh', 'ath', 'ed', 'es', 'et', 'en', 'ez'}   # Arabic, dropped where Arabic is spoken
+FRENCH = {'新喀里多尼亞', '法屬玻里尼西亞', '瓦利斯和富圖納'}
+FRENCH_ARTICLES = {'le', 'la', 'les', 'des', 'du', 'd', 'l', 'aux', 'et'}
 ARABIC = {'敘利亞', '黎巴嫩', '以色列', '巴勒斯坦地區', '約旦', '埃及', '沙烏地阿拉伯', '葉門', '阿曼', '阿拉伯聯合大公國', '卡達', '巴林', '科威特', '伊拉克'}
 WORDS = {}
 for chinese, words in SUFFIX.items():
@@ -256,7 +277,8 @@ def strip_accents(text, country):
 
 def respell(word, country):
     """Spellings of each language turned into the plain onsets the syllable table knows."""
-    for a, b in [('tch', 'ch'), ('dj', 'j'), ('tj', 'ch'), ('oe', 'u'), ('kh', 'h'), ('gh', 'g'), ('dh', 'z'), ('ph', 'p' if country in ('泰國', '寮國', '柬埔寨') else 'f'),
+    word = re.sub(r'^ma?c(?=[^aeiouyh])', 'mak', word)   # McLennan, MacKay → 麥克…
+    for a, b in [('wh', 'w'), ('tch', 'ch'), ('dj', 'j'), ('tj', 'ch'), ('oe', 'u'), ('kh', 'h'), ('gh', 'g'), ('dh', 'z'), ('ph', 'p' if country in ('泰國', '寮國', '柬埔寨') else 'f'),
                  ('th', 't'), ('ny', 'n'), ('nh', 'n'), ('sy', 'sh'), ('zh', 'j'), ('qu', 'kw'), ('x', 's' if country == '越南' else 'ks'), ('q', 'k'),
                  ('aa', 'a'), ('ee', 'i'), ('oo', 'u'), ('uu', 'u'), ('ii', 'i'), ('ae', 'e'), ('gi', 'zi' if country == '越南' else 'gi')]:
         word = word.replace(a, b)
@@ -294,6 +316,11 @@ def phonetic(word, country):
                 if word[i] in CODA and not (word[i] == 'h'):
                     out.append(CODA[word[i]])
                 i += 1
+    # the usual written endings: Tasmania 塔斯馬尼亞, Wellington 威靈頓
+    if word.endswith('ia') and out and out[-1] == SYLLABLE['a']:
+        out[-1] = '亞'
+    if word.endswith('ton') and out and out[-1] == SYLLABLE.get('ton'):
+        out[-1] = '頓'
     return ''.join(out)
 
 
@@ -351,11 +378,11 @@ def made_up(name, country):
         return korean(name)
     if KANA.search(name) or (country == '日本' and CJK.search(name)):
         return japanese(name)
-    plain = strip_accents(name, country).replace('thanh pho', 'thanhpho').replace('thi xa', 'thixa')
+    plain = strip_accents(re.sub(r"\b[dlDL][‘’'`](?=\w)", '', name), country).replace('thanh pho', 'thanhpho').replace('thi xa', 'thixa')
     words = [w for w in re.split(r"[\s\-/,()]+", plain) if w]
     prefix, core, suffix = [], [], []
     for word in words:
-        if word in DROP or (country in ARABIC and word in ARTICLES):
+        if word in DROP or (country in ARABIC and word in ARTICLES) or (country in FRENCH and word in FRENCH_ARTICLES):
             continue
         if country in ('中國', '香港', '澳門', '台灣') and word in PINYIN_WORDS:
             suffix.append(PINYIN_WORDS[word]); continue
@@ -391,7 +418,7 @@ def main(geonames_folder, cache_folder):
         for place in todo:
             original = place['name']
             name = labels.get(place.get('gid')) if needs_name(original) else None
-            if name and not needs_name(name):
+            if name and not needs_name(name) and not re.search(r'[A-Za-z]', name):   # not half-translated ("Judge及Clerk島")
                 official += 1
             else:
                 name = made_up(original, country)

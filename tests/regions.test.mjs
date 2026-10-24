@@ -14,7 +14,11 @@ test('registry lists the countries in unlock order with codes, names and places'
   assert.deepEqual(COUNTRIES.filter(c=>c.unlock?.includes('circumJapan')).map(c=>c.code),['kr','kp','cn','hk','mo','vn']);
   assert.equal(countryCode('日本'),'jp');assert.equal(countryCode('kp'),'kp');assert.equal(countryName('ph'),'菲律賓');
   assert.equal(exaggerationAt(23.5,121),1.9);assert.equal(exaggerationAt(35,139),1.15);assert.equal(exaggerationAt(24.9,118.6),1.15);
-  for(const country of COUNTRIES)assert.ok((await readJson(country.places)).places.length>=(["mo","bn","ps","bt","bh","il","lb","qa","nr"].includes(country.code)?20:100),country.code);
+  // small countries and Pacific islands have few named places (Niue 4, Pitcairn 8, Norfolk 11)
+  const least={mo:20,bn:20,ps:20,bt:20,bh:20,il:20,lb:20,qa:20,nr:20,tv:20,wf:20,ki:20,mp:20,nu:4,pn:4,nf:4};
+  for(const country of COUNTRIES)assert.ok((await readJson(country.places)).places.length>=(least[country.code]??100),country.code);
+  for(const code of ['au','nz','pg','fj','ws','to','pf'])assert.ok(COUNTRIES.some(c=>c.code===code),code);
+  assert.equal(countryName('au'),'澳洲');assert.equal(countryName('nz'),'紐西蘭');
 });
 
 test('every coast chunk has a full-detail file, and the outline layer is a much lighter subset',async()=>{
