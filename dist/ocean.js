@@ -1,412 +1,102 @@
+import {initCameraZoom} from './camera-zoom.js';
+import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,toggleHover,turboCooldownLeft,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
+import {createFlightHoldInput} from './flight-input.js';
+import {BASE_CRUISE_SPEED} from './vehicle-speeds.js';
+import { scheduleNavigationRetry } from './nav.js';
+import { updateLandmarkHud } from './landmark-hud.js';
+import {setStampGuidanceEnabled} from './stamp-guidance.js';
+import { sceneryObstacles, movementBlocked } from './nav-obstacles.js';
+import { movementAxes, isMovementKey, isTextControl } from './controls.js';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
-import { Sky } from './vendor/Sky.js';
-import { Water } from './vendor/Water.js';
-import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js';
-import shipStlUrl from './Data/pirateship.stl';
+import { createWhaleEvent } from './whale.js';
+import { setLandmarkNight } from './landmark-models.js';
+import { createLandscapeLighting } from './landscape-lighting.js';
+import { createCoastalWater } from './coastal-water.js';
+import { createCapeScenery } from './coastal-scenery.js';
+import { updateLandmarkDetails, regroundLandmarkDetails } from './landmark-detail.js';
+import { createNightLights } from './night-lights.js';
+import { createWhaleSound } from './whale-sound.js';
+import { createMusic } from './music.js';
+import { cycleQuality, quality } from './quality.js';
+import { createAmbience } from './ambience.js';
+import { initSettings } from './settings.js';
+import { initJourney, journeyOpen, logEvent, recordSpecialStamp, recordWhale, setJourneyOpen, setStampTargets, trackJourney } from './journey.js';
+import { JAPAN_BARRIER_KM, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
+import { ELUANBI_OFFSHORE_START, geoToWorld, kmPerWorldUnitAt, worldToGeo } from './geo.js';
+import { placeCountries } from './places.js';
+import { COUNTRY_LABELS, buildCoarseRelief, distanceToLand, isOnLand, landIslands, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
+import { revealGame, startingHeading, BOAT_WATERLINE_Y, WORLD_BOUNDS, boat, boatLights, camera, compassDial, currentVehicleType, cycleTimeMode, cycleWeatherMode, fpsReadout, glowTexture, headingReadout, landDistanceReadout, lighthouseBeacons, loading, positionReadout, reflectionExclusions, renderer, scene, sky, directional, sun, setWeatherAlert, speedReadout, startingWorldPosition, timeOfDay, updateDayCycle, updateWeather, water, weatherBlend, windDirection, windReadout } from './core.js';
+import { createSeaLife } from './sea-life.js';
+import { createSeaFx } from './sea-fx.js';
+import { createLensFx } from './lens-fx.js';
+import { createSkyFx } from './sky-fx.js';
+import { createSkyExtras } from './sky-extras.js';
+import { createLightningFx, unlockWeatherSound } from './weather-fx.js';
+import { addTaiwanLandmarks, regroundTaiwanLandmarks, setTaipei101Night } from './taiwan-landmarks.js';
+import { addLandmarks, regroundLandmarks, landmarkEntries, landmarkInstances, updateLandmarkVisibility } from './landmarks.js';
+import { autopilotStep, markNavObstacle, nearestCoastPoint, runNavigation, setNavStatus, stopAutopilot } from './nav.js';
+import { cameraAnchor, keys, state, topDownView } from './state.js';
+import { setWorldMapOpen, updateExploration, updateWorldMap, worldMapOpen } from './world-map.js';
+import { seaNameAt, updateSeaName } from './seas.js';
+import './nav-ui.js';   // registers the destination box's suggestion list and submit handler
+import { updateMapLabels } from './labels.js';
 
-const container = document.querySelector('#app');
-const loading = document.querySelector('#loading');
-const speedReadout = document.querySelector('#speed');
-const moodReadout = document.querySelector('#mood');
-const windReadout = document.querySelector('#wind');
-const compassDial = document.querySelector('#compass-dial');
-const headingReadout = document.querySelector('#heading');
-const positionReadout = document.querySelector('#position');
-const landDistanceReadout = document.querySelector('#land-distance');
-window.__oceanFallback?.stop();
-window.__oceanFallback?.canvas.remove();
-const scene = new THREE.Scene();
-scene.fog = new THREE.FogExp2(0x8aaec0, 0.000075);
-
-const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, .05, 20000);
-const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
-renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 0.22;
-container.append(renderer.domElement);
-
-function makeWaterNormals() {
-  const size = 256;
-  const normalCanvas = document.createElement('canvas');
-  normalCanvas.width = normalCanvas.height = size;
-  const context = normalCanvas.getContext('2d');
-  const pixels = context.createImageData(size, size);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const dx = Math.cos(x * .19 + y * .07) * .65 + Math.sin(y * .31) * .35;
-      const dy = Math.sin(y * .17 - x * .09) * .65 + Math.cos(x * .29) * .35;
-      const i = (y * size + x) * 4;
-      pixels.data[i] = 128 + dx * 22;
-      pixels.data[i + 1] = 128 + dy * 22;
-      pixels.data[i + 2] = 255;
-      pixels.data[i + 3] = 255;
+// Night view of the coast (see night-lights.js): clustered city lights, harbour lights, flashing lighthouses and sweeping beams.
+let nightLights = null;
+let capeScenery = null;
+const landscapeLighting = createLandscapeLighting({renderer,scene,directional,sky});
+const coastalWater = createCoastalWater(water,landIslands);
+function addCityLights() {
+  const cities = [], harbours = [], lighthouses = [];
+  for (const { places } of placeCountries) {
+    for (const place of places) {
+      const world = geoToWorld({ latitude: place.lat, longitude: place.lon });
+      if (place.type === 'LTHSE') { const onLand = isOnLand(world.x, world.y); lighthouses.push({ x: world.x, z: world.y, onLand, y: onLand ? terrainHeightAt(world.x, world.y) : 0 }); }
+      else if (place.type === 'HBR' || place.type === 'PRT') harbours.push({ x: world.x, z: world.y });
+      else if ((place.pop ?? 0) >= 50000 && place.type !== 'ADM1' && place.type !== 'ADM2' && place.type !== 'ISL' && isOnLand(world.x, world.y)) cities.push({ x: world.x, z: world.y, pop: place.pop });
     }
   }
-  context.putImageData(pixels, 0, 0);
-  const texture = new THREE.CanvasTexture(normalCanvas);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.colorSpace = THREE.NoColorSpace;
-  return texture;
+  if (nightLights) {       // rebuilt once the East Asia heightmap arrives
+    scene.remove(nightLights.group);
+    nightLights.group.traverse((object) => { object.geometry?.dispose(); if (object.material && !object.material.map) object.material.dispose?.(); });
+    reflectionExclusions.splice(reflectionExclusions.indexOf(nightLights.group), 1);
+  }
+  nightLights = createNightLights({ cities, harbours, lighthouses, isOnLand, heightAt: terrainHeightAt });
+  scene.add(nightLights.group);
+  reflectionExclusions.push(nightLights.group);
 }
-
-const water = new Water(new THREE.PlaneGeometry(10000, 10000), {
-  textureWidth: 512,
-  textureHeight: 512,
-  waterNormals: makeWaterNormals(),
-  sunDirection: new THREE.Vector3(),
-  sunColor: 0xfff0c6,
-  waterColor: 0x001e0f,
-  distortionScale: 3.2,
-  fog: true
+// Full-detail coast and heights around the start arrive first, then sights and lights are placed and the coarse relief
+// of all land is built. Detail elsewhere streams in as the boat or jet moves (land.js); whenever heightmap tiles
+// arrive or leave, the sights and lights are lifted onto the new heights (batched, at most once a second). The light
+// layout itself is never rebuilt here: that takes seconds and froze flights that crossed many heightmap tiles.
+let regroundTimer = 0;
+const regroundBoxes = [];
+onLandChange(({ kind, box }) => {
+  if (kind !== 'dem' || !landPlaced) return;
+  regroundBoxes.push(box);
+  if (regroundTimer) return;
+  regroundTimer = setTimeout(() => {
+    regroundTimer = 0;
+    regroundTaiwanLandmarks(terrainHeightAt);
+    regroundLandmarks();
+    regroundLandmarkDetails();
+    for (const changed of regroundBoxes.splice(0)) nightLights?.reground(changed);
+  }, 1000);
 });
-water.rotation.x = -Math.PI / 2;
-water.material.uniforms.size.value = 1.1;
-// Keep the ocean animated without mirroring nearby scene objects.
-const reflectionCanvas = document.createElement('canvas');
-reflectionCanvas.width = reflectionCanvas.height = 1;
-const reflectionContext = reflectionCanvas.getContext('2d');
-reflectionContext.fillStyle = '#16384b';
-reflectionContext.fillRect(0, 0, 1, 1);
-water.material.uniforms.mirrorSampler.value = new THREE.CanvasTexture(reflectionCanvas);
-water.onBeforeRender = () => {};
-scene.add(water);
-
-const sky = new Sky();
-sky.scale.setScalar(10000);
-scene.add(sky);
-const skyUniforms = sky.material.uniforms;
-skyUniforms.turbidity.value = 10;
-skyUniforms.rayleigh.value = 2;
-skyUniforms.mieCoefficient.value = 0.005;
-skyUniforms.mieDirectionalG.value = 0.8;
-if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = 0.28;
-if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = 0.48;
-if (skyUniforms.cloudElevation) skyUniforms.cloudElevation.value = 0.36;
-
-const sun = new THREE.Vector3();
-const hemisphere = new THREE.HemisphereLight(0xa7ddff, 0x0a1d2b, 1.4);
-const ambient = new THREE.AmbientLight(0xfff2dc, 0.45);
-const directional = new THREE.DirectionalLight(0xffedbd, 1.4);
-scene.add(hemisphere, ambient, directional);
-
-const moon = new THREE.Mesh(
-  new THREE.SphereGeometry(62, 32, 20),
-  new THREE.MeshBasicMaterial({ color: 0xe7efff })
-);
-moon.visible = false;
-scene.add(moon);
-let timeOfDay = 'morning';
-
-function setTimeOfDay(mode) {
-  const night = mode === 'night';
-  timeOfDay = night ? 'night' : 'morning';
-
-  if (night) {
-    renderer.toneMappingExposure = 0.15;
-    scene.fog.color.setHex(0x020716);
-    scene.fog.density = 0.000095;
-    skyUniforms.turbidity.value = 1.5;
-    skyUniforms.rayleigh.value = 0.32;
-    skyUniforms.mieCoefficient.value = 0.001;
-    skyUniforms.mieDirectionalG.value = 0.72;
-    if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = 0.16;
-    if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = 0.26;
-    if (skyUniforms.cloudElevation) skyUniforms.cloudElevation.value = 0.18;
-    sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 34), THREE.MathUtils.degToRad(-35));
-    water.material.uniforms.sunColor.value.setHex(0x91adff);
-    water.material.uniforms.waterColor.value.setHex(0x000d2b);
-    water.material.uniforms.distortionScale.value = 2.45;
-    hemisphere.color.setHex(0x263d80);
-    hemisphere.groundColor.setHex(0x01030a);
-    hemisphere.intensity = 0.62;
-    ambient.color.setHex(0x355aab);
-    ambient.intensity = 0.2;
-    directional.color.setHex(0xaac0ff);
-    directional.intensity = 0.82;
-    moon.visible = true;
-    moodReadout && (moodReadout.textContent = 'MOONLIT NIGHT');
-  } else {
-    renderer.toneMappingExposure = 0.22;
-    scene.fog.color.setHex(0x8aaec0);
-    scene.fog.density = 0.000075;
-    skyUniforms.turbidity.value = 10;
-    skyUniforms.rayleigh.value = 2;
-    skyUniforms.mieCoefficient.value = 0.005;
-    skyUniforms.mieDirectionalG.value = 0.8;
-    if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = 0.28;
-    if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = 0.48;
-    if (skyUniforms.cloudElevation) skyUniforms.cloudElevation.value = 0.36;
-    // Taiwan is in the northern hemisphere: morning light comes from the south, not north.
-    sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 18), THREE.MathUtils.degToRad(0));
-    water.material.uniforms.sunColor.value.setHex(0xfff0c6);
-    water.material.uniforms.waterColor.value.setHex(0x001e0f);
-    water.material.uniforms.distortionScale.value = 3.2;
-    hemisphere.color.setHex(0xa7ddff);
-    hemisphere.groundColor.setHex(0x0a1d2b);
-    hemisphere.intensity = 1.4;
-    ambient.color.setHex(0xfff2dc);
-    ambient.intensity = 0.45;
-    directional.color.setHex(0xffedbd);
-    directional.intensity = 1.4;
-    moon.visible = false;
-    moodReadout && (moodReadout.textContent = 'EARLY MORNING');
-  }
-
-  skyUniforms.sunPosition.value.copy(sun);
-  water.material.uniforms.sunDirection.value.copy(sun).normalize();
-  directional.position.copy(sun).multiplyScalar(3500);
-  moon.position.copy(sun).multiplyScalar(5000);
-}
-scene.add(directional);
-
-function buildBoat() {
-  const boat = new THREE.Group();
-  const wakeMaterial = new THREE.ShaderMaterial({
-    transparent: true,
-    depthWrite: false,
-    uniforms: {
-      time: { value: 0 },
-      strength: { value: 0 }
-    },
-    vertexShader: `
-      uniform float time;
-      varying vec2 vUv;
-      void main() {
-        vUv = uv;
-        vec3 transformed = position;
-        float trail = 1.0 - uv.y;
-        transformed.z += sin(position.y * 1.6 - time * 4.0) * .045 * (1.0 + trail * 2.0);
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(transformed, 1.0);
-      }
-    `,
-    fragmentShader: `
-      uniform float time;
-      uniform float strength;
-      varying vec2 vUv;
-      void main() {
-        float trail = 1.0 - vUv.y;
-        float halfWidth = mix(.09, .43, trail);
-        float edge = 1.0 - smoothstep(halfWidth, halfWidth + .10, abs(vUv.x - .5));
-        float broken = sin(vUv.y * 96.0 - time * 7.0 + sin(vUv.x * 31.0 + time * 2.0) * 2.4);
-        float flecks = smoothstep(.10, .72, broken * .5 + .5);
-        float alpha = edge * flecks * strength * mix(.62, .18, trail);
-        gl_FragColor = vec4(.79, .95, 1.0, alpha);
-      }
-    `
-  });
-  const wake = new THREE.Mesh(new THREE.PlaneGeometry(5.8, 22, 16, 32), wakeMaterial);
-  wake.rotation.x = -Math.PI / 2;
-  // The hull is rendered smaller than the navigation map, so enlarge the wake
-  // independently to keep a readable trail behind the ship.
-  wake.scale.set(3, 3, 1);
-  wake.position.set(0, .85, 36);
-  wake.renderOrder = 1;
-  boat.add(wake);
-  boat.userData.wake = wake;
-  return boat;
+let landPlaced = false;
+async function addLand() {
+  try { await streamLandAround(boat.position.x, boat.position.z); } catch (error) { console.error('無法載入附近的海岸線與地形', error); }
+  addTaiwanLandmarks(terrainHeightAt);
+  addLandmarks();
+  setStampTargets(landmarkEntries);
+  capeScenery = createCapeScenery({scene,reflectionExclusions,heightAt:terrainHeightAt,isOnLand});
+  addCityLights();
+  landPlaced = true;
+  await buildCoarseRelief();
 }
 
-async function loadPirateShip(boat) {
-  try {
-    const geometry = await new STLLoader().loadAsync(shipStlUrl);
-    // 此 STL 以 Z 為高度、Y 為船身長度；轉成 Three.js 場景使用的 Y-up 座標。
-    geometry.rotateX(-Math.PI / 2);
-    geometry.computeVertexNormals();
-    geometry.computeBoundingBox();
-    const bounds = geometry.boundingBox;
-    const height = bounds.max.y - bounds.min.y;
-    const colors = new Float32Array(geometry.attributes.position.count * 3);
-    const color = new THREE.Color();
-    for (let i = 0; i < geometry.attributes.position.count; i++) {
-      const y = geometry.attributes.position.getY(i);
-      const level = (y - bounds.min.y) / height;
-      if (level < .20) color.setHex(0x5f200a);
-      else if (level < .48) color.setHex(0xae4918);
-      else if (level < .68) color.setHex(0xe49a4d);
-      else color.setHex(0xffe6a9);
-      colors.set([color.r, color.g, color.b], i * 3);
-    }
-    geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
-    geometry.translate(-(bounds.min.x + bounds.max.x) * .5, -bounds.min.y, -(bounds.min.z + bounds.max.z) * .5);
 
-    const ship = new THREE.Mesh(geometry, new THREE.MeshPhysicalMaterial({
-      vertexColors: true,
-      roughness: .62,
-      metalness: .04,
-      clearcoat: .12,
-      clearcoatRoughness: .55,
-      emissive: 0x6a290a,
-      emissiveIntensity: 1.15
-    }));
-    ship.scale.setScalar(.13);
-    // 龍骨沉入水面下，僅保留吃水線以上的船體與桅杆。
-    ship.position.y = -1.35;
-    boat.add(ship);
-    boat.userData.ship = ship;
-  } catch (error) {
-    console.error('無法載入 pirateship.stl', error);
-  }
-}
-
-const boat = buildBoat();
-// WGS84 coordinates are the source of truth. One scene unit represents four km,
-// keeping Taiwan visible without pretending that the ship itself is kilometres long.
-const TAIWAN_REFERENCE = { latitude: 23.70, longitude: 121.00 };
-const WORLD_UNITS_PER_KM = .25;
-const KM_PER_LATITUDE_DEGREE = 110.574;
-const KM_PER_LONGITUDE_DEGREE = 111.320 * Math.cos(THREE.MathUtils.degToRad(TAIWAN_REFERENCE.latitude));
-const TAIWAN_EAST_COAST_START = { latitude: 24.070, longitude: 121.860 };
-
-function geoToWorld({ latitude, longitude }) {
-  return new THREE.Vector2(
-    (longitude - TAIWAN_REFERENCE.longitude) * KM_PER_LONGITUDE_DEGREE * WORLD_UNITS_PER_KM,
-    -(latitude - TAIWAN_REFERENCE.latitude) * KM_PER_LATITUDE_DEGREE * WORLD_UNITS_PER_KM
-  );
-}
-
-function worldToGeo(x, z) {
-  return {
-    latitude: TAIWAN_REFERENCE.latitude - z / (KM_PER_LATITUDE_DEGREE * WORLD_UNITS_PER_KM),
-    longitude: TAIWAN_REFERENCE.longitude + x / (KM_PER_LONGITUDE_DEGREE * WORLD_UNITS_PER_KM)
-  };
-}
-
-const taiwanCoastline = [
-  [25.30, 121.57], [25.22, 121.70], [24.96, 121.84], [24.53, 121.84],
-  [24.05, 121.72], [23.54, 121.51], [23.05, 121.40], [22.53, 120.86],
-  [22.00, 120.63], [21.90, 120.85], [22.10, 120.98], [22.54, 120.74],
-  [23.05, 120.25], [23.58, 120.12], [24.05, 120.24], [24.59, 120.40],
-  [25.04, 121.03], [25.30, 121.57]
-].map(([latitude, longitude]) => geoToWorld({ latitude, longitude }));
-
-function addTaiwan() {
-  // A stylised relief model of Taiwan's major mountain systems. Heights use
-  // real summit elevations, projected into the same WGS84 navigation space.
-  const mountainPeaks = [
-    { latitude: 24.388, longitude: 121.231, elevationKm: 3.886, radiusKm: 20 }, // Snow Mountain
-    { latitude: 24.360, longitude: 121.440, elevationKm: 3.742, radiusKm: 16 }, // Nanhu Dashan
-    { latitude: 23.470, longitude: 120.957, elevationKm: 3.952, radiusKm: 22 }, // Yushan
-    { latitude: 23.560, longitude: 121.250, elevationKm: 3.303, radiusKm: 22 }, // Central Range
-    { latitude: 23.260, longitude: 120.950, elevationKm: 3.666, radiusKm: 19 }, // Guanshan
-    { latitude: 22.627, longitude: 120.760, elevationKm: 3.092, radiusKm: 17 }  // Beidawu
-  ];
-  const terrainHeight = (x, z) => {
-    const position = worldToGeo(x, z);
-    return mountainPeaks.reduce((height, peak) => {
-      const northSouth = (position.latitude - peak.latitude) * KM_PER_LATITUDE_DEGREE;
-      const eastWest = (position.longitude - peak.longitude) * KM_PER_LONGITUDE_DEGREE;
-      const distanceKm = Math.hypot(northSouth, eastWest);
-      const summitHeight = peak.elevationKm * WORLD_UNITS_PER_KM * 1.15;
-      return height + summitHeight * Math.exp(-(distanceKm * distanceKm) / (2 * peak.radiusKm * peak.radiusKm));
-    }, .035);
-  };
-  const bounds = taiwanCoastline.reduce((result, point) => ({
-    minX: Math.min(result.minX, point.x), maxX: Math.max(result.maxX, point.x),
-    minZ: Math.min(result.minZ, point.y), maxZ: Math.max(result.maxZ, point.y)
-  }), { minX: Infinity, maxX: -Infinity, minZ: Infinity, maxZ: -Infinity });
-  // A fine terrain grid keeps the shoreline from looking like stair steps,
-  // while shared vertices let Three.js interpolate one continuous surface.
-  const step = .06;
-  const vertices = [];
-  const colors = [];
-  const indices = [];
-  const vertexIndices = new Map();
-  const colorForHeight = (height) => {
-    const stops = [
-      [.08, 0x7ca66d], // coastal plain
-      [.42, 0x315f36], // foothills
-      [.92, 0x64775a], // mountain forest
-      [1.36, 0xa7aa99] // high, exposed ridges
-    ];
-    const upper = stops.findIndex(([altitude]) => height <= altitude);
-    if (upper <= 0) return new THREE.Color(stops[0][1]);
-    if (upper < 0) return new THREE.Color(stops.at(-1)[1]);
-    const [lowAltitude, lowColor] = stops[upper - 1];
-    const [highAltitude, highColor] = stops[upper];
-    return new THREE.Color(lowColor).lerp(
-      new THREE.Color(highColor),
-      THREE.MathUtils.smoothstep(height, lowAltitude, highAltitude)
-    );
-  };
-  const addVertex = (x, z) => {
-    const key = `${x.toFixed(3)}:${z.toFixed(3)}`;
-    const existing = vertexIndices.get(key);
-    if (existing !== undefined) return existing;
-    const height = terrainHeight(x, z);
-    const color = colorForHeight(height);
-    vertices.push(x, height, z);
-    colors.push(color.r, color.g, color.b);
-    const index = vertices.length / 3 - 1;
-    vertexIndices.set(key, index);
-    return index;
-  };
-  for (let z = bounds.minZ; z < bounds.maxZ; z += step) {
-    for (let x = bounds.minX; x < bounds.maxX; x += step) {
-      const corners = [[x, z], [x + step, z], [x + step, z + step], [x, z + step]];
-      if (!corners.every(([pointX, pointZ]) => isOnTaiwan(pointX, pointZ))) continue;
-      const a = addVertex(...corners[0]);
-      const b = addVertex(...corners[1]);
-      const c = addVertex(...corners[2]);
-      const d = addVertex(...corners[3]);
-      indices.push(a, b, c, a, c, d);
-    }
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setIndex(indices);
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  geometry.computeVertexNormals();
-  const island = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({
-    vertexColors: true,
-    roughness: .92,
-    metalness: 0,
-    flatShading: false,
-    side: THREE.DoubleSide,
-    emissive: 0x142912,
-    emissiveIntensity: .35
-  }));
-  scene.add(island);
-
-}
-
-function isOnTaiwan(x, z) {
-  let inside = false;
-  for (let i = 0, j = taiwanCoastline.length - 1; i < taiwanCoastline.length; j = i++) {
-    const a = taiwanCoastline[i];
-    const b = taiwanCoastline[j];
-    const crosses = (a.y > z) !== (b.y > z) && x < (b.x - a.x) * (z - a.y) / (b.y - a.y) + a.x;
-    if (crosses) inside = !inside;
-  }
-  return inside;
-}
-
-function distanceToTaiwanKm(x, z) {
-  if (isOnTaiwan(x, z)) return 0;
-  let closestSquared = Infinity;
-  for (let i = 1; i < taiwanCoastline.length; i++) {
-    const a = taiwanCoastline[i - 1];
-    const b = taiwanCoastline[i];
-    const dx = b.x - a.x;
-    const dz = b.y - a.y;
-    const lengthSquared = dx * dx + dz * dz;
-    const progress = THREE.MathUtils.clamp(((x - a.x) * dx + (z - a.y) * dz) / lengthSquared, 0, 1);
-    const nearX = a.x + dx * progress;
-    const nearZ = a.y + dz * progress;
-    closestSquared = Math.min(closestSquared, (x - nearX) ** 2 + (z - nearZ) ** 2);
-  }
-  return Math.sqrt(closestSquared) / WORLD_UNITS_PER_KM;
-}
-
-const startingWorldPosition = geoToWorld(TAIWAN_EAST_COAST_START);
-boat.position.set(startingWorldPosition.x, .08, startingWorldPosition.y);
-boat.rotation.y = Math.PI / 2;
-boat.scale.setScalar(.07);
-scene.add(boat);
-loadPirateShip(boat);
-addTaiwan();
 
 function seaHeight(x, z, time) {
   return (
@@ -422,138 +112,525 @@ controls.maxPolarAngle = Math.PI * .49;
 controls.minDistance = 1.5;
 controls.maxDistance = 80;
 controls.enabled = false;
-let orbitMode = false;
-let topDownMode = false;
-let velocity = 0;
-let collisionPulse = 0;
-const keys = new Set();
+const observation=initCameraZoom({camera,canvas:renderer.domElement,onOpen:()=>{
+  state.topDownMode=false;state.orbitMode=false;controls.enabled=false;state.smoothLookReady=false;
+}});
 const targetCamera = new THREE.Vector3();
 const targetLook = new THREE.Vector3();
+// Camera follows the boat's position on the water, not its wave bobbing: the bob would
+// otherwise rock the whole view and make every distant island appear to shake.
+const smoothLook = new THREE.Vector3();
 const forward = new THREE.Vector2();
 const starboard = new THREE.Vector2();
-const windDirection = new THREE.Vector2();
 const clock = new THREE.Clock();
+let aircraft=createFlightState();
+const flightControls=document.querySelector('#flight-controls');
+const flightReadout=document.querySelector('#flight-readout');
+const flightModeReadout=document.querySelector('#flight-mode');
+const flightHoldInput=createFlightHoldInput();
+const flightObstacleBox=new THREE.Box3();
+const flightObstacleTopAt=(x,z,radius=0)=>{
+  let top=-Infinity;
+  for(const item of landmarkInstances){
+    if(Math.abs(item.displayX-x)>2+radius||Math.abs(item.displayZ-z)>2+radius)continue;
+    flightObstacleBox.setFromObject(item.group);
+    if(x+radius>=flightObstacleBox.min.x&&x-radius<=flightObstacleBox.max.x&&z+radius>=flightObstacleBox.min.z&&z-radius<=flightObstacleBox.max.z)
+      top=Math.max(top,flightObstacleBox.max.y);
+  }
+  return top;
+};
+const flightEnvironment={isOnLand,terrainHeightAt,obstacleTopAt:flightObstacleTopAt,bounds:WORLD_BOUNDS};
+const modeNames={grounded:'地面待命',takingOff:'起飛中',hover:'滯空中',flying:'飛行中',landing:'降落中'};
+function syncAircraft(){
+  boat.position.set(aircraft.x,aircraft.y,aircraft.z);
+  boat.rotation.set(aircraft.pitch,aircraft.heading,aircraft.bank,'YXZ');
+  const gear=boat.userData.ship?.userData.gear;if(gear)gear.visible=['grounded','takingOff','landing'].includes(aircraft.mode);
+}
+function flightCommand(command){
+  if(currentVehicleType()!=='fighter')return;
+  const result=command==='takeoff'?requestTakeoff(aircraft,flightEnvironment):command==='land'?requestLanding(aircraft,flightEnvironment):toggleHover(aircraft);
+  showEventToast(result.ok?command==='takeoff'?'正在垂直起飛':command==='land'?'確認陸地，正在降落':result.mode==='hover'?'已切換滯空':'已恢復前進飛行':result.reason);
+  syncAircraft();
+}
+for(const [id,command] of [['flight-takeoff','takeoff'],['flight-land','land']]){
+  const button=document.querySelector(`#${id}`);
+  button?.addEventListener('pointerdown',event=>{
+    if(event.button!==0||currentVehicleType()!=='fighter')return;
+    button.setPointerCapture(event.pointerId);
+    flightHoldInput.press(`pointer:${event.pointerId}`,command);
+  });
+  button?.addEventListener('pointerup',event=>{
+    const result=flightHoldInput.release(`pointer:${event.pointerId}`);
+    if(result?.kind==='tap')flightCommand(command);
+  });
+  button?.addEventListener('pointercancel',event=>flightHoldInput.cancel(`pointer:${event.pointerId}`));
+  // Keyboard activation and assistive clicks do not dispatch pointer events.
+  button?.addEventListener('click',event=>{if(event.detail===0)flightCommand(command);});
+}
+document.querySelector('#flight-hover')?.addEventListener('click',()=>flightCommand('hover'));
+// Turbo's last use is real time in localStorage, so reloading or another tab cannot skip the one-hour cooldown.
+const TURBO_KEY='relax-turbo-v1';
+const flightTurboButton=document.querySelector('#flight-turbo');
+const lastTurboUse=()=>{try{return Number(localStorage.getItem(TURBO_KEY))||NaN;}catch{return NaN;}};
+function flightTurbo(){
+  if(currentVehicleType()!=='fighter')return;
+  const now=Date.now(),result=requestTurbo(aircraft,{lastUsed:lastTurboUse(),now});
+  if(result.ok)try{localStorage.setItem(TURBO_KEY,String(now));}catch{/* private mode: cooldown lasts this session only */}
+  showEventToast(result.ok?'Turbo！10 秒內加速到最高速度 3 倍':result.reason);
+}
+flightTurboButton?.addEventListener('click',()=>flightTurbo());
+function updateTurboButton(){
+  if(!flightTurboButton)return;
+  const left=turboCooldownLeft(lastTurboUse(),Date.now());
+  const text=aircraft.turbo!==null?`Turbo ${turboMultiplier(aircraft).toFixed(1)}×`:left>0?`E Turbo ${Math.floor(left/60000)}:${String(Math.floor(left/1000)%60).padStart(2,'0')}`:'E Turbo';
+  if(flightTurboButton.textContent!==text)flightTurboButton.textContent=text;
+  flightTurboButton.classList.toggle('is-active',aircraft.turbo!==null);
+  flightTurboButton.classList.toggle('is-cooling',aircraft.turbo===null&&left>0);
+}
+
+// Offshore spots to jump to: [offshore position, landmark the bow should face].
+const TELEPORT_SPOTS = [
+  { name: '基隆燈塔', sea: { latitude: 25.2150, longitude: 121.7900 }, landmark: { latitude: 25.155417, longitude: 121.747733 } },
+  { name: '屏東燈塔', sea: ELUANBI_OFFSHORE_START, landmark: { latitude: 21.902250, longitude: 120.852667 } },
+  { name: '沖繩', country: '日本', sea: { latitude: 26.2125, longitude: 127.6000 }, landmark: { latitude: 26.2125, longitude: 127.6790 } },
+  { name: '鴨川', country: '日本', sea: { latitude: 35.0700, longitude: 140.1600 }, landmark: { latitude: 35.1147, longitude: 140.1030 } }
+];
+const locationButtons = [...document.querySelectorAll('[data-location]')];
+
+function teleportTo(index) {
+  if(currentVehicleType()==='fighter'){showEventToast('戰鬥機請直接飛行；傳送點供船隻使用');return;}
+  const spot = TELEPORT_SPOTS[index];
+  if (!spot) return;
+  if (spot.country && !isCountryUnlocked(spot.country)) { showEventToast(lockMessage(spot.country)); return; }
+  const sea = geoToWorld(spot.sea);
+  const landmark = geoToWorld(spot.landmark);
+  stopAutopilot();
+  state.velocity = 0;
+  boat.position.set(sea.x, BOAT_WATERLINE_Y, sea.y);
+  // respect the 5 km rule: back away from the nearest shore until the boat is at least 5.5 km out
+  for (let step = 0; step < 60 && distanceToLand(boat.position.x, boat.position.z).km < MIN_SHORE_KM + .5; step++) {
+    const coast = nearestCoastPoint(boat.position.x, boat.position.z);
+    const dx = boat.position.x - coast.x, dz = boat.position.z - coast.z, length = Math.hypot(dx, dz) || 1;
+    boat.position.x += dx / length * .08; boat.position.z += dz / length * .08;
+  }
+  boat.rotation.set(0, Math.atan2(-(landmark.x - boat.position.x), -(landmark.y - boat.position.z)), 0);
+  lastShoreKm = Infinity;
+  // Snap the camera next to the boat so it doesn't glide hundreds of units across the map.
+  const behind = new THREE.Vector3(.5, .75, 2.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
+  camera.position.copy(behind);
+  state.smoothLookReady = false;
+  controls.target.copy(boat.position);
+  locationButtons.forEach((button) => button.classList.toggle('is-active', Number(button.dataset.location) === index));
+}
+locationButtons.forEach((button) => button.addEventListener('click', () => teleportTo(Number(button.dataset.location))));
+
+// Top-down chart: wheel to zoom, drag to pan, double-click to recentre on the boat.
+renderer.domElement.addEventListener('wheel', (event) => {
+  if (!state.topDownMode) return;
+  event.preventDefault();
+  topDownView.height = THREE.MathUtils.clamp(topDownView.height * Math.exp(event.deltaY * .0012), 12, 1900);
+}, { passive: false });
+renderer.domElement.addEventListener('pointerdown', (event) => {
+  if (!state.topDownMode) return;
+  topDownView.drag = { x: event.clientX, y: event.clientY };
+  renderer.domElement.setPointerCapture(event.pointerId);
+});
+renderer.domElement.addEventListener('pointermove', (event) => {
+  if (!state.topDownMode || !topDownView.drag) return;
+  const unitsPerPixel = 2 * topDownView.height * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)) / innerHeight;
+  topDownView.offsetX -= (event.clientX - topDownView.drag.x) * unitsPerPixel;
+  topDownView.offsetZ -= (event.clientY - topDownView.drag.y) * unitsPerPixel;
+  topDownView.drag = { x: event.clientX, y: event.clientY };
+});
+const endMapDrag = () => { topDownView.drag = null; };
+renderer.domElement.addEventListener('pointerup', endMapDrag);
+renderer.domElement.addEventListener('pointercancel', endMapDrag);
+renderer.domElement.addEventListener('dblclick', () => { topDownView.offsetX = 0; topDownView.offsetZ = 0; });
 
 addEventListener('keydown', (event) => {
+  if(event.key==='Escape'&&observation.view.active&&event.target.closest?.('#camera-zoom-panel')){observation.close();event.target.blur();return;}
+  if (isTextControl(event.target)) {
+    if (event.key === 'Escape') event.target.blur();
+    return;
+  }
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    if (!event.repeat) setWorldMapOpen(!worldMapOpen);
+    return;
+  }
+  if (event.key === 'Escape' && journeyOpen()) { setJourneyOpen(false); return; }
+  if (event.key === 'Escape' && achievementsOpen()) { setAchievementsOpen(false); return; }
+  if (event.key === 'Escape' && worldMapOpen) { setWorldMapOpen(false); return; }
   const key = event.key.toLowerCase();
+  if(currentVehicleType()==='fighter'&&[' ','shift','arrowup','arrowdown'].includes(key))event.preventDefault();
+  if(currentVehicleType()==='fighter'&&['f','l'].includes(key)){
+    if(!event.repeat)flightHoldInput.press(`key:${key}`,key==='f'?'takeoff':'land');
+    return;
+  }
+  if(currentVehicleType()==='fighter'&&key==='h'&&!event.repeat){
+    flightCommand('hover');return;
+  }
+  if(currentVehicleType()==='fighter'&&key==='e'&&!event.repeat){
+    flightTurbo();return;
+  }
+  if(key==='escape'&&observation.view.active){observation.close();return;}
+  if (isMovementKey(key) && key.startsWith('arrow')) event.preventDefault();
+  if ((state.autopilot || state.navBusy) && (isMovementKey(key) || key === 'escape' || key === 'r')) stopAutopilot('已手動接管，自動導航結束');
   keys.add(key);
+  if (/^[1-4]$/.test(key) && !event.repeat) teleportTo(Number(key) - 1);
   if (key === 'c' && !event.repeat) {
-    orbitMode = !orbitMode;
-    topDownMode = false;
-    controls.enabled = orbitMode;
-    if (orbitMode) controls.target.copy(boat.position);
+    observation.close();
+    state.orbitMode = !state.orbitMode;
+    state.topDownMode = false;
+    controls.enabled = state.orbitMode;
+    if (state.orbitMode) {
+      controls.target.copy(boat.position);
+      // still far away (e.g. pressed right after loading): start the orbit just behind the boat
+      if (camera.position.distanceTo(boat.position) > 12) camera.position.set(.5, .75, 2.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
+    }
   }
   if (key === 'v' && !event.repeat) {
-    topDownMode = !topDownMode;
-    orbitMode = false;
+    observation.close();
+    state.topDownMode = !state.topDownMode;
+    topDownView.offsetX = 0; topDownView.offsetZ = 0;
+    state.orbitMode = false;
     controls.enabled = false;
   }
   if (key === 'r' && !event.repeat) {
-    velocity = 0;
-    boat.position.set(startingWorldPosition.x, .08, startingWorldPosition.y);
-    boat.rotation.set(0, Math.PI / 2, 0);
+    state.velocity = 0;
+    if(currentVehicleType()==='fighter'){
+      aircraft=createFlightState({x:startingWorldPosition.x,y:.8,z:startingWorldPosition.y,heading:startingHeading,mode:'hover'});
+      syncAircraft();showEventToast('已回到屏東外海上空');
+    }else{
+      boat.position.set(startingWorldPosition.x, BOAT_WATERLINE_Y, startingWorldPosition.y);
+      boat.rotation.set(0, startingHeading, 0);
+    }
+    state.smoothLookReady=false;
   }
   if (key === 't' && !event.repeat) {
-    setTimeOfDay(timeOfDay === 'morning' ? 'night' : 'morning');
+    cycleTimeMode();
   }
+  if (key === 'g' && !event.repeat) cycleWeatherMode();
+  if (key === 'o' && !event.repeat) setAchievementsOpen(!achievementsOpen());
+  if (key === 'j' && !event.repeat) setJourneyOpen(!journeyOpen());
+  if (key === 'b' && !event.repeat) { const on = music.toggle(); const hint = document.querySelector('#music-state'); if (hint) hint.textContent = on ? '開' : '關'; }
+  if (key === 'q' && !event.repeat) { const q = cycleQuality(); const hint = document.querySelector('#quality-state'); if (hint) hint.textContent = q.name; showEventToast(`畫質：${q.name}`); }
+  if (key === 'n' && !event.repeat) { const muted = ambience.toggle(); const hint = document.querySelector('#ambience-state'); if (hint) hint.textContent = muted ? '關' : '開'; }
+  if (key === 'm' && !event.repeat) { const muted = whaleSound.toggle(); const hint = document.querySelector('#sound-state'); if (hint) hint.textContent = muted ? '靜音' : '開'; }
 });
-addEventListener('keyup', (event) => keys.delete(event.key.toLowerCase()));
-addEventListener('blur', () => keys.clear());
+addEventListener('keyup', (event) => {
+  const key=event.key.toLowerCase();
+  if(currentVehicleType()==='fighter'&&['f','l'].includes(key)){
+    const result=flightHoldInput.release(`key:${key}`);
+    if(result?.kind==='tap')flightCommand(result.command);
+  }
+  keys.delete(key);
+});
+addEventListener('blur', () => {keys.clear();flightHoldInput.clear();});
 addEventListener('resize', () => {
   camera.aspect = innerWidth / innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
 });
 
+const fpsMeter = { frames: 0, since: performance.now() };
+function updateFps() {
+  fpsMeter.frames++;
+  const now = performance.now();
+  if (now - fpsMeter.since < 500) return;
+  const fps = fpsMeter.frames * 1000 / (now - fpsMeter.since);
+  fpsMeter.frames = 0;
+  fpsMeter.since = now;
+  // a struggling machine gets one hint to lower the quality
+  if (!fpsMeter.hinted && quality.level !== 'low' && performance.now() > 20000) {
+    fpsMeter.slow = fps < 28 ? (fpsMeter.slow ?? 0) + 1 : 0;
+    if (fpsMeter.slow >= 16) { fpsMeter.hinted = true; showEventToast('畫面有點卡：按 Q 可以降低畫質'); }
+  }
+  if (fpsReadout) {
+    fpsReadout.textContent = `${Math.round(fps)} FPS`;
+    fpsReadout.dataset.level = fps >= 50 ? 'good' : fps >= 30 ? 'ok' : 'low';
+  }
+}
+
+// Random whale visits (see whale.js). Add ?whale to the URL for a quick demo: the first one appears after a few seconds.
+const eventToast = document.querySelector('#event-toast');
+let eventToastTimer = 0;
+function showEventToast(text, kind = 'normal') {
+  if (!eventToast) return;
+  eventToast.textContent = text;
+  eventToast.classList.toggle('is-big', kind === 'big');
+  eventToast.hidden = false;
+  eventToast.classList.remove('is-visible');
+  void eventToast.offsetWidth;
+  eventToast.classList.add('is-visible');
+  clearTimeout(eventToastTimer);
+  eventToastTimer = setTimeout(() => { eventToast.hidden = true; }, 6000);
+}
+const whaleEvent = createWhaleEvent({
+  scene, boat, glowTexture, waterlineY: 0, isOnLand, distanceToLand, reflectionExclusions,   // waterlineY 0 = the sea surface (see SEA_LEVEL)
+  quickDemo: new URLSearchParams(location.search).has('whale'),
+  forceSpecies: new URLSearchParams(location.search).get('whale'),
+  onAppear: (kind) => {
+    recordEvent('whale'); recordWhale();
+    if (kind === 'pink') { showEventToast('罕見！粉紅色的藍鯨出現了！', 'big'); recordSpecialStamp('pinkWhale'); } else showEventToast('發現鯨魚！');
+  },
+  onAlarm: () => showEventToast('鯨魚受驚，潛入深海'),
+  onCall: (kind, volume) => whaleSound.call(kind, volume)
+});
+// Each arrival at a sight has a 5% chance of bringing the rare pink blue whale; if there is no room for it right then,
+// it keeps trying for half a minute.
+const PINK_WHALE_CHANCE = .05;
+let pinkWhalePending = 0;
+initJourney({ onNotify: showEventToast, onVisit: () => { if (Math.random() < PINK_WHALE_CHANCE) pinkWhalePending = 30; } });
+initAchievements({ onNotify: (text, kind) => { showEventToast(text, kind); if (!text.startsWith('蓋章')) logEvent(text); }, onCircumnavigate: () => runNavigation('@circum') });
+const lightningFx = createLightningFx();
+// BOAT_WATERLINE_Y is where the boat's origin rides; the water surface itself is the plane y = 0.
+const SEA_LEVEL = 0;
+const seaLife = createSeaLife({ scene, boat, glowTexture, waterlineY: SEA_LEVEL, isOnLand, distanceToLand, geoToWorld, reflectionExclusions, onToast: (text) => { showEventToast(text); logEvent(text); }, quickDolphins: new URLSearchParams(location.search).has('dolphins') });
+const skyFx = createSkyFx({ scene, camera });
+const seaFx = createSeaFx({ scene, boat, glowTexture, waterlineY: SEA_LEVEL, reflectionExclusions });
+const lensFx = createLensFx();
+const skyExtras = createSkyExtras({ scene, camera, reflectionExclusions });
+setWeatherAlert((text) => { showEventToast(text, 'big'); logEvent(text); });
+// Browsers only allow audio after a user gesture; M mutes.
+const whaleSound = createWhaleSound();
+const music = createMusic();
+const ambience = createAmbience();
+initSettings({ music, whaleSound, ambience });
+for (const type of ['pointerdown', 'keydown']) addEventListener(type, () => { whaleSound.unlock(); music.unlock(); ambience.unlock(); unlockWeatherSound(); }, { once: true });
+
+document.querySelector('#whale-button')?.addEventListener('click', (event) => {
+  event.currentTarget.blur();
+  if (!whaleEvent.spawn()) showEventToast('附近沒有開闊海域');
+});
+
+let lastBarrierToast = 0, lastShoreToast = 0, lastShoreKm = Infinity;
+let lastFlightWarningToast=0;
+const MIN_SHORE_KM = 2;   // closest hand steering may bring the boat to a shore (autopilot stops further out)
+const MANUAL_CRUISE = BASE_CRUISE_SPEED;   // same as the autopilot's cruise speed
 function animate() {
+  updateFps();
   const delta = Math.min(clock.getDelta(), .05);
   const elapsed = clock.elapsedTime;
-  const windAngle = .72 + Math.sin(elapsed * .018) * .58;
-  const windSpeed = 13 + Math.sin(elapsed * .041) * 2.5;
+  const windAngle = -1.22 + Math.sin(elapsed * .018) * .58 + weatherBlend.typhoon * Math.sin(elapsed * .35) * .5;
+  const windSpeed = 13 + Math.sin(elapsed * .041) * 2.5 + weatherBlend.storm * 12 + weatherBlend.typhoon * 28;
+  // sea state: 1 in calm weather, up to about 3 in a typhoon; scales how hard the boat pitches, rolls and bobs
+  const waveScale = 1 + weatherBlend.storm * .7 + weatherBlend.typhoon * 1.4 + Math.max(0, windSpeed - 13) / 60;
   windDirection.set(Math.sin(windAngle), Math.cos(windAngle));
+  updateDayCycle(delta);
+  updateWeather(elapsed, delta);
+  lightningFx.update(delta, weatherBlend.storm, weatherBlend.typhoon);
+  if(currentVehicleType()!=='fighter'){
+    whaleEvent.update(delta);
+    if (pinkWhalePending > 0) { pinkWhalePending -= delta; if (!whaleEvent.active && whaleEvent.spawn('pink')) pinkWhalePending = 0; }
+  }
   forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));
   starboard.set(-forward.y, forward.x);
-  const windAlignment = forward.dot(windDirection);
-  const throttle = (keys.has('w') ? 1 : 0) - (keys.has('s') ? 1 : 0);
-  // Taiwan's simplified coastline is about 908 km. At .38 scene units/s
-  // (four km per unit), cruising its perimeter takes roughly ten minutes.
-  const engineForce = throttle > 0 ? .175 : throttle < 0 ? -.13 : 0;
-  const windForce = windAlignment * windSpeed * .0001;
-  velocity += (engineForce + windForce - velocity * .45) * delta;
-  velocity = THREE.MathUtils.clamp(velocity, -.32, .45);
-  const steer = (keys.has('a') ? 1 : 0) - (keys.has('d') ? 1 : 0);
-  boat.rotation.y += steer * delta * (.36 + Math.abs(velocity) * .035) * Math.sign(velocity || 1);
+  let nearestLand,sideDrift=0,steer=0;
+  if(currentVehicleType()==='fighter'){
+    const previousX=aircraft.x,previousZ=aircraft.z;
+    const axes=movementAxes(keys);
+    const climbHold=flightHoldInput.active('takeoff'),descendHold=flightHoldInput.active('land');
+    if(climbHold&&aircraft.mode==='grounded')flightCommand('takeoff');
+    if(climbHold&&aircraft.mode==='landing')aircraft.mode='hover';
+    if(descendHold&&['takingOff','landing'].includes(aircraft.mode))aircraft.mode='hover';
+    flightStep(aircraft,{...axes,climb:keys.has(' ')||climbHold,descend:keys.has('shift')||descendHold},flightEnvironment,delta);
+    nearestLand=distanceToLand(aircraft.x,aircraft.z);
+    if(!isCountryUnlocked(nearestLand.country)&&nearestLand.km<JAPAN_BARRIER_KM){
+      aircraft.x=previousX;aircraft.z=previousZ;aircraft.speed=0;aircraft.warning=lockMessage(nearestLand.country);
+      nearestLand=distanceToLand(aircraft.x,aircraft.z);
+    }
+    if(aircraft.warning&&performance.now()-lastFlightWarningToast>4200){showEventToast(aircraft.warning);lastFlightWarningToast=performance.now();}
+    state.velocity=aircraft.speed;
+    syncAircraft();
+    ambience.update(delta,{gulls:0,wind:windSpeed,rain:Math.max(weatherBlend.rain,weatherBlend.storm,weatherBlend.typhoon),storm:Math.min(1,weatherBlend.storm+weatherBlend.typhoon),speed:0});
+    skyExtras.update({delta,elapsed,sun,precipitation:Math.max(weatherBlend.rain,weatherBlend.storm,weatherBlend.typhoon),mist:weatherBlend.mist});
+    skyFx.update({delta,elapsed,night:timeOfDay==='night',latitude:worldToGeo(aircraft.x,aircraft.z).latitude,storm:weatherBlend.storm,typhoon:weatherBlend.typhoon});
+  }else{
+  const autoSteer = autopilotStep(delta);
+  steer = autoSteer ?? 0;
+  if (autoSteer === null) {
+    const { throttle, steer: manualSteer } = movementAxes(keys);
+    // full ahead settles at the autopilot's cruising speed (2.2 units/s ≈ 88 kn): force / drag = 2.2
+    const engineForce = throttle > 0 ? MANUAL_CRUISE * state.handling.speed * .45 : throttle < 0 ? -.26 : 0;
+    // W / S drive the engine forward or astern; water drag settles the boat at its cruising speed.
+    state.velocity += (engineForce - state.velocity * .45) * delta;
+    state.velocity = THREE.MathUtils.clamp(state.velocity, -.64, MANUAL_CRUISE * state.handling.speed);
+    steer = manualSteer;
+    boat.rotation.y += steer * delta * (.36 + Math.abs(state.velocity) * .035) * state.handling.turn * Math.sign(state.velocity || 1);
+  }
   forward.set(-Math.sin(boat.rotation.y), -Math.cos(boat.rotation.y));
   starboard.set(-forward.y, forward.x);
   // Wind remains a gentle lateral influence at the new map-navigation scale.
-  const sideDrift = starboard.dot(windDirection) * windSpeed * (.00018 + Math.abs(velocity) * .000022);
-  boat.position.x += (forward.x * velocity + starboard.x * sideDrift) * delta;
-  boat.position.z += (forward.y * velocity + starboard.y * sideDrift) * delta;
+  sideDrift = starboard.dot(windDirection) * windSpeed * (.00018 + Math.abs(state.velocity) * .000022);
+  boat.position.x += (forward.x * state.velocity + starboard.x * sideDrift) * delta;
+  boat.position.z += (forward.y * state.velocity + starboard.y * sideDrift) * delta;
 
-  if (isOnTaiwan(boat.position.x, boat.position.z)) {
-    boat.position.x -= (forward.x * velocity + starboard.x * sideDrift) * delta;
-    boat.position.z -= (forward.y * velocity + starboard.y * sideDrift) * delta;
-    velocity *= -.16;
-    collisionPulse = 1;
+  const previousPosition={x:boat.position.x-(forward.x*state.velocity+starboard.x*sideDrift)*delta,z:boat.position.z-(forward.y*state.velocity+starboard.y*sideDrift)*delta};
+  const sceneryHit=sceneryObstacles.some(o=>movementBlocked(o,previousPosition,{x:boat.position.x,z:boat.position.z}));
+  if (isOnLand(boat.position.x, boat.position.z)||sceneryHit) {
+    const obstacleX=boat.position.x, obstacleZ=boat.position.z;
+    boat.position.x = previousPosition.x;
+    boat.position.z = previousPosition.z;
+    state.velocity *= -.16;
+    state.collisionPulse = 1;
+    if (state.autopilot) {
+      const { query, retries } = state.autopilot;
+      markNavObstacle(obstacleX, obstacleZ);
+      stopAutopilot();
+      if (retries > 0) scheduleNavigationRetry(query, retries - 1);
+      else setNavStatus('撞上陸地，自動導航中止', 'error');
+    }
   }
-  const worldLimit = 160;
-  if (Math.abs(boat.position.x) > worldLimit || Math.abs(boat.position.z) > worldLimit) {
-    boat.position.x = THREE.MathUtils.clamp(boat.position.x, -worldLimit, worldLimit);
-    boat.position.z = THREE.MathUtils.clamp(boat.position.z, -worldLimit, worldLimit);
-    velocity *= -.22;
-    collisionPulse = 1;
+  // Japan is locked until Taiwan has been sailed round: its waters turn the boat back.
+  let shoreX=boat.position.x,shoreZ=boat.position.z;
+  nearestLand = distanceToLand(shoreX,shoreZ);
+  seaLife.update({ delta, elapsed, night: timeOfDay === 'night', storm: weatherBlend.storm, typhoon: weatherBlend.typhoon, speed: Math.abs(state.velocity), nearestLand });
+  ambience.update(delta, { gulls: seaLife.gullLevel * 6, wind: windSpeed, rain: Math.max(weatherBlend.rain, weatherBlend.storm, weatherBlend.typhoon), storm: Math.min(1, weatherBlend.storm + weatherBlend.typhoon), speed: Math.abs(state.velocity) });
+  skyExtras.update({ delta, elapsed, sun, precipitation: Math.max(weatherBlend.rain, weatherBlend.storm, weatherBlend.typhoon), mist: weatherBlend.mist });
+  skyFx.update({ delta, elapsed, night: timeOfDay === 'night', latitude: worldToGeo(boat.position.x, boat.position.z).latitude, storm: weatherBlend.storm, typhoon: weatherBlend.typhoon });
+  // Hand steering may not bring the boat within MIN_SHORE_KM of any coast. Instead of stopping dead, the part of the move
+  // that heads toward the shore is removed, so the boat slides along the limit and can keep sailing parallel to the coast.
+  if (!state.autopilot && nearestLand.km < MIN_SHORE_KM && nearestLand.km < lastShoreKm) {
+    const moveX = boat.position.x - previousPosition.x, moveZ = boat.position.z - previousPosition.z;
+    boat.position.x -= moveX; boat.position.z -= moveZ;
+    const coast = nearestCoastPoint(boat.position.x, boat.position.z);
+    let nx = boat.position.x - coast.x, nz = boat.position.z - coast.z;
+    const length = Math.hypot(nx, nz) || 1; nx /= length; nz /= length;
+    const inward = moveX * nx + moveZ * nz;
+    const slideX = moveX - Math.min(0, inward) * nx, slideZ = moveZ - Math.min(0, inward) * nz;
+    boat.position.x += slideX; boat.position.z += slideZ;
+    const after = distanceToLand(boat.position.x, boat.position.z);
+    if (isOnLand(boat.position.x, boat.position.z) || sceneryObstacles.some(o=>movementBlocked(o,previousPosition,{x:boat.position.x,z:boat.position.z})) || after.km < Math.min(lastShoreKm, MIN_SHORE_KM) - .02) { boat.position.x -= slideX; boat.position.z -= slideZ; state.velocity *= .5; }   // a corner: no way along it
+    else lastShoreKm = Math.min(lastShoreKm, after.km);
+    if (performance.now() - lastShoreToast > 8000) { lastShoreToast = performance.now(); showEventToast(`靠岸限制：最近只能到離岸 ${MIN_SHORE_KM} 公里`); }
+  } else lastShoreKm = nearestLand.km;
+  if(boat.position.x!==shoreX||boat.position.z!==shoreZ){
+    shoreX=boat.position.x;shoreZ=boat.position.z;nearestLand=distanceToLand(shoreX,shoreZ);
   }
-  collisionPulse = Math.max(0, collisionPulse - delta * 2.4);
+  if (!isCountryUnlocked(nearestLand.country) && nearestLand.km < JAPAN_BARRIER_KM) {   // locked countries turn the boat back at their waters
+    boat.position.x = previousPosition.x;
+    boat.position.z = previousPosition.z;
+    state.velocity *= -.16;
+    state.collisionPulse = 1;
+    if (state.autopilot) stopAutopilot(lockMessage(nearestLand.country), 'error');
+    if (performance.now() - lastBarrierToast > 4000) { lastBarrierToast = performance.now(); showEventToast(lockMessage(nearestLand.country)); }
+  }
+  const clampedX = THREE.MathUtils.clamp(boat.position.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  const clampedZ = THREE.MathUtils.clamp(boat.position.z, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ);
+  if (clampedX !== boat.position.x || clampedZ !== boat.position.z) {
+    boat.position.x = clampedX;
+    boat.position.z = clampedZ;
+    state.velocity *= -.22;
+    state.collisionPulse = 1;
+  }
+  if(boat.position.x!==shoreX||boat.position.z!==shoreZ){
+    shoreX=boat.position.x;shoreZ=boat.position.z;nearestLand=distanceToLand(shoreX,shoreZ);
+  }
+  }
+  if(currentVehicleType()!=='fighter'){
+  trackAchievements({ delta, x: boat.position.x, z: boat.position.z, nearestLand, night: timeOfDay === 'night', speed: Math.abs(state.velocity), landmarks: landmarkEntries });
+  trackJourney({ delta, x: boat.position.x, z: boat.position.z, kmPerUnit: kmPerWorldUnitAt(boat.position.z), speed: Math.abs(state.velocity), seaName: () => seaNameAt(boat.position.x, boat.position.z), nearestLand, stampTargets: landmarkEntries });
+  }
+  state.collisionPulse = Math.max(0, state.collisionPulse - delta * 2.4);
 
+  let wakeForce=0;
+  if(currentVehicleType()!=='fighter'){
   const bowWave = seaHeight(boat.position.x + forward.x * 4.5, boat.position.z + forward.y * 4.5, elapsed);
   const sternWave = seaHeight(boat.position.x - forward.x * 4.5, boat.position.z - forward.y * 4.5, elapsed);
   const portWave = seaHeight(boat.position.x - starboard.x * 2, boat.position.z - starboard.y * 2, elapsed);
   const starboardWave = seaHeight(boat.position.x + starboard.x * 2, boat.position.z + starboard.y * 2, elapsed);
   const centerWave = seaHeight(boat.position.x, boat.position.z, elapsed);
-  const targetPitch = Math.atan2(sternWave - bowWave, 9);
-  const targetRoll = Math.atan2(portWave - starboardWave, 4) - sideDrift * .012 + collisionPulse * .07;
-  boat.position.y = THREE.MathUtils.lerp(boat.position.y, centerWave + .08, 1 - Math.pow(.002, delta));
+  const targetPitch = Math.atan2(sternWave - bowWave, 9) * waveScale + Math.sin(elapsed * .9) * .018 * (waveScale - 1);
+  const targetRoll = Math.atan2(portWave - starboardWave, 4) * waveScale - sideDrift * .012 + state.collisionPulse * .07 + Math.sin(elapsed * .7 + 1) * .03 * (waveScale - 1);
+  // Water's visible motion is shader-based, so do not apply its full analytic
+  // wave height to the hull. A tightly bounded bob keeps its keel above water.
+  const gentleBob = (Math.sin(elapsed * 1.05 + boat.position.x * .04) * .008 + centerWave * .018) * waveScale;
+  boat.position.y = THREE.MathUtils.lerp(boat.position.y, BOAT_WATERLINE_Y + gentleBob, 1 - Math.pow(.002, delta));
   boat.rotation.x = THREE.MathUtils.lerp(boat.rotation.x, targetPitch, 1 - Math.pow(.006, delta));
   boat.rotation.z = THREE.MathUtils.lerp(boat.rotation.z, targetRoll, 1 - Math.pow(.006, delta));
-  const wakeForce = THREE.MathUtils.clamp(Math.abs(velocity) / .055, 0, 1);
+  seaFx.update({ delta, light: (timeOfDay === 'night' ? .16 : 1) * (1 - .4 * Math.min(1, weatherBlend.storm + weatherBlend.typhoon)), speed: Math.abs(state.velocity), waveScale, windSpeed, windDirection, forward: { x: forward.x, z: forward.y }, pitch: boat.rotation.x });
+  // `velocity` is expressed in scene units while the HUD presents knots. Use
+  // the small cruising range here so a visible wake begins with normal motion,
+  // instead of only appearing at unrealistically high scene speeds.
+  wakeForce = THREE.MathUtils.clamp((Math.abs(state.velocity) - .0002) / .0015, 0, 1);
   boat.userData.wake.material.uniforms.time.value = elapsed;
-  boat.userData.wake.material.uniforms.strength.value = wakeForce * .58;
-  water.material.uniforms.time.value += delta * (.65 + wakeForce * 4.5);
+  // Foam follows real speed (a boat merely drifting in the wind leaves none); the camera keeps its own, more sensitive wakeForce.
+  const foamForce = THREE.MathUtils.clamp((Math.abs(state.velocity) - .01) / .25, 0, 1);
+  boat.userData.wake.material.uniforms.strength.value = foamForce * .82;
+  }else boat.userData.wake.material.uniforms.strength.value=0;
+  lensFx.update(delta, { rain: Math.max(weatherBlend.rain, weatherBlend.storm, weatherBlend.typhoon), spray: currentVehicleType()==='fighter'?0:Math.max(0, waveScale - 1.6) * .5 * Math.min(1, Math.abs(state.velocity) * 4), topDown: state.topDownMode });
+  water.material.uniforms.time.value += delta * (.85 + weatherBlend.storm*.45 + weatherBlend.typhoon*.7);
+  for (const { lensMaterial, flashPeriod, flashPattern } of lighthouseBeacons) {
+    const isLit = flashPattern(elapsed % flashPeriod);
+    // by day a lantern is just glass: it only blazes after dark
+    const lampLevel = timeOfDay === 'night' ? 1 : .12;
+    lensMaterial.emissiveIntensity = (isLit ? 3.4 : .55) * lampLevel;
+  }
 
-  const atmosphericDrift = elapsed * .012;
-  const isNight = timeOfDay === 'night';
-  const baseElevation = isNight ? 34 : 18;
-  const elevation = baseElevation + Math.sin(atmosphericDrift) * (isNight ? 5 : 4.5);
-  const azimuth = (isNight ? -35 : 0) + atmosphericDrift * (isNight ? 18 : 24);
-  sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth));
-  skyUniforms.sunPosition.value.copy(sun);
-  water.material.uniforms.sunDirection.value.copy(sun).normalize();
-  directional.position.copy(sun).multiplyScalar(3500);
-  moon.position.copy(sun).multiplyScalar(5000);
-  if (skyUniforms.cloudCoverage) skyUniforms.cloudCoverage.value = (isNight ? .16 : .28) + Math.sin(elapsed * .09) * .035;
-  if (skyUniforms.cloudDensity) skyUniforms.cloudDensity.value = (isNight ? .26 : .48) + Math.sin(elapsed * .07 + 1.2) * .045;
+  const darkSky = timeOfDay === 'night';   // the boat's lamps and searchlight only at night
+  boatLights.visible = darkSky&&currentVehicleType()!=='fighter';
+  boat.userData.ship?.userData.setNight?.(darkSky);
+  setTaipei101Night(timeOfDay === 'night');
+  setLandmarkNight(timeOfDay === 'night');
+  nightLights?.update({
+    time: elapsed, delta, night: timeOfDay === 'night', camera, viewportHeight: innerHeight, pixelRatio: renderer.getPixelRatio(),
+    boat: { x: boat.position.x, z: boat.position.z }, darkness: weatherBlend.rain
+  });
 
-  if (topDownMode) {
-    targetCamera.set(0, 58, .01).add(boat.position);
+  const flying=currentVehicleType()==='fighter';
+  seaFx.root.visible=!flying;
+  cameraAnchor.set(boat.position.x, flying?boat.position.y:BOAT_WATERLINE_Y, boat.position.z);
+  if(observation.update(delta,cameraAnchor,boat.rotation.y)){
+    state.smoothLookReady=false;
+  } else if (state.topDownMode) {
+    targetCamera.set(topDownView.offsetX, topDownView.height, topDownView.offsetZ + .01).add(cameraAnchor);
     camera.position.lerp(targetCamera, 1 - Math.pow(.0002, delta));
-    camera.lookAt(boat.position.x, 0, boat.position.z);
+    camera.lookAt(cameraAnchor.x + topDownView.offsetX, flying?cameraAnchor.y:0, cameraAnchor.z + topDownView.offsetZ);
     camera.fov = THREE.MathUtils.lerp(camera.fov, 45, 1 - Math.pow(.02, delta));
     camera.updateProjectionMatrix();
-  } else if (!orbitMode) {
-    targetCamera.set(.5, .75 + wakeForce * .12, 2.2 + wakeForce * .45).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
-    camera.position.lerp(targetCamera, 1 - Math.pow(.0006, delta));
-    targetLook.set(0, .2, -wakeForce * .4).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
-    camera.lookAt(targetLook);
-    camera.rotateZ(-steer * wakeForce * .018);
-    camera.fov = THREE.MathUtils.lerp(camera.fov, 55 + wakeForce * 9, 1 - Math.pow(.02, delta));
+    state.smoothLookReady = false;
+  } else if (!state.orbitMode) {
+    const follow = 1 - Math.pow(.0006, delta);
+    targetCamera.set(flying ? .18 : .5, flying ? .34 : .75 + wakeForce * .12, flying ? 1.35 : 2.2 + wakeForce * .45).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(cameraAnchor);
+    camera.position.lerp(targetCamera, follow);
+    targetLook.set(0, flying ? .08 : .2, flying ? -1.3 : -wakeForce * .4).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(cameraAnchor);
+    if (!state.smoothLookReady) { smoothLook.copy(targetLook); state.smoothLookReady = true; }
+    smoothLook.lerp(targetLook, Math.min(1, follow * 1.6));
+    camera.lookAt(smoothLook);
+    camera.rotateZ(flying?aircraft.bank*.11:-steer * wakeForce * .018 + Math.sin(elapsed * 1.3) * .012 * (waveScale - 1));
+    camera.fov = THREE.MathUtils.lerp(camera.fov, flying?61:55 + wakeForce * 9, 1 - Math.pow(.02, delta));
     camera.updateProjectionMatrix();
   } else {
-    controls.target.lerp(boat.position, .08);
+    controls.target.lerp(cameraAnchor, .08);
     controls.update();
+    state.smoothLookReady = false;
   }
-  speedReadout.textContent = Math.abs(velocity * 7775).toFixed(0);
+  coastalWater.update(camera,timeOfDay==='night',weatherBlend.storm);
+  updateLandStreaming(boat.position.x, boat.position.z);
+  updateLandDetail();
+  updateExploration();
+  updateWorldMap();
+  updateLandmarkVisibility();
+  updateLandmarkDetails(camera,timeOfDay==='night');
+  capeScenery?.update(camera,timeOfDay==='night');
+  landscapeLighting.update({camera,boat,sun,night:timeOfDay==='night',time:elapsed,storm:weatherBlend.storm});
+  updateSeaName();
+  updateMapLabels(state.topDownMode, camera.position.y);
+  updateLandmarkHud(delta,state.topDownMode);
+  speedReadout.textContent = Math.abs(state.velocity * 40).toFixed(0);   // cruising ≈ 88 kn
+  if(flightReadout){
+    flightReadout.hidden=!flying;
+    if(flying){
+      const ground=isOnLand(boat.position.x,boat.position.z)?terrainHeightAt(boat.position.x,boat.position.z):0;
+      const climb=Math.round(aircraft.verticalSpeed*300);
+      flightReadout.textContent=`高度 ${Math.max(0,Math.round(boat.position.y*1000))} m · 離地 ${aircraft.mode==='grounded'?0:Math.max(0,Math.round((boat.position.y-ground)*1000))} m · 升降 ${climb>0?'+':''}${climb} m/min`;
+    }
+  }
+  if(flightModeReadout&&flying)flightModeReadout.textContent=modeNames[aircraft.mode]??'飛行中';
+  if(flying)updateTurboButton();
   const compass = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-  const windIndex = Math.round((Math.atan2(windDirection.x, windDirection.y) / (Math.PI * 2)) * 8 + 8) % 8;
+  const windIndex = Math.round((Math.atan2(-windDirection.x, windDirection.y) / (Math.PI * 2)) * 8 + 8) % 8;
   windReadout.textContent = `WIND · ${compass[windIndex]} ${windSpeed.toFixed(0)} kn`;
   const headingDegrees = (THREE.MathUtils.radToDeg(-boat.rotation.y) + 360) % 360;
   const headingIndex = Math.round(headingDegrees / 45) % 8;
@@ -563,12 +640,95 @@ function animate() {
   const latitudeHemisphere = coordinates.latitude >= 0 ? 'N' : 'S';
   const longitudeHemisphere = coordinates.longitude >= 0 ? 'E' : 'W';
   positionReadout.textContent = `${Math.abs(coordinates.latitude).toFixed(3)}° ${latitudeHemisphere} · ${Math.abs(coordinates.longitude).toFixed(3)}° ${longitudeHemisphere}`;
-  const landDistance = distanceToTaiwanKm(boat.position.x, boat.position.z);
-  landDistanceReadout.textContent = landDistance < .2 ? 'TAIWAN COAST · ARRIVED' : `TAIWAN COAST · ${landDistance.toFixed(1)} km`;
+  const coastName = COUNTRY_LABELS[nearestLand.country];
+  landDistanceReadout.textContent = nearestLand.km < .2 ? `${coastName} COAST · ARRIVED` : `${coastName} COAST · ${nearestLand.km.toFixed(1)} km`;
+  // The sea plane and sky box are finite (10,000 units): keep them centred on the camera so they never run out,
+  // however far the map reaches. Water ripples are sampled in world space, so moving the plane does not slide them.
+  water.position.x = camera.position.x; water.position.z = camera.position.z;
+  sky.position.copy(camera.position);
   renderer.render(scene, camera);
 }
 
-camera.position.set(.5, .75, 2.2);
-setTimeOfDay('morning');
+// Preserve the original boat save unchanged; aircraft have a separate position and altitude record.
+const VOYAGE_KEY = 'relax-boat-v1';
+const AIRCRAFT_KEY = 'relax-aircraft-v1';
+let seaVoyage={x:startingWorldPosition.x,z:startingWorldPosition.y,heading:startingHeading};
+try {
+  const saved = JSON.parse(localStorage.getItem(VOYAGE_KEY) ?? 'null');
+  if (saved && [saved.x, saved.z, saved.heading].every(Number.isFinite) && !isOnLand(saved.x, saved.z)) {
+    seaVoyage={x:THREE.MathUtils.clamp(saved.x,WORLD_BOUNDS.minX,WORLD_BOUNDS.maxX),z:THREE.MathUtils.clamp(saved.z,WORLD_BOUNDS.minZ,WORLD_BOUNDS.maxZ),heading:saved.heading};
+  }
+} catch { /* no saved voyage */ }
+let savedAircraft=null;
+try{
+  const saved=JSON.parse(localStorage.getItem(AIRCRAFT_KEY)??'null');
+  if(saved&&[saved.x,saved.y,saved.z,saved.heading].every(Number.isFinite)&&['hover','flying','grounded','takingOff','landing'].includes(saved.mode))
+    savedAircraft=createFlightState({x:THREE.MathUtils.clamp(saved.x,WORLD_BOUNDS.minX,WORLD_BOUNDS.maxX),y:THREE.MathUtils.clamp(saved.y,0,FLIGHT_MAX_HEIGHT),z:THREE.MathUtils.clamp(saved.z,WORLD_BOUNDS.minZ,WORLD_BOUNDS.maxZ),heading:saved.heading,mode:['takingOff','landing'].includes(saved.mode)?'hover':saved.mode,speed:Number.isFinite(saved.speed)?saved.speed:0});
+}catch{/* first flight */}
+let aircraftInitialized=false;
+function saveAircraft(){try{localStorage.setItem(AIRCRAFT_KEY,JSON.stringify({x:aircraft.x,y:aircraft.y,z:aircraft.z,heading:aircraft.heading,mode:aircraft.mode,speed:aircraft.speed}));}catch{/* private mode */}}
+function activateVehicle({previous,type}){
+  if(previous==='fighter')saveAircraft();
+  else if(previous){
+    seaVoyage={x:boat.position.x,z:boat.position.z,heading:boat.rotation.y};
+    try{localStorage.setItem(VOYAGE_KEY,JSON.stringify(seaVoyage));}catch{/* private mode */}
+  }
+  stopAutopilot();state.velocity=0;state.smoothLookReady=false;
+  observation.close();state.orbitMode=false;state.topDownMode=false;controls.enabled=false;
+  keys.clear();flightHoldInput.clear();lastShoreKm=Infinity;
+  const fighter=type==='fighter';
+  document.body.classList.toggle('fighter-mode',fighter);
+  if(fighter){
+    if(!aircraftInitialized){
+      aircraft=savedAircraft??createFlightState({x:boat.position.x,y:Math.max(.8,terrainHeightAt(boat.position.x,boat.position.z)+.65),z:boat.position.z,heading:boat.rotation.y,mode:'hover'});
+      aircraftInitialized=true;
+    }
+    if(aircraft.mode==='grounded'&&!landingSite(aircraft,flightEnvironment).ok)aircraft.mode='hover';
+    aircraft.y=Math.max(aircraft.y,aircraft.mode==='grounded'?terrainHeightAt(aircraft.x,aircraft.z)+.055:(isOnLand(aircraft.x,aircraft.z)?terrainHeightAt(aircraft.x,aircraft.z):0)+FLIGHT_MIN_CLEARANCE);
+    syncAircraft();
+    showEventToast(aircraft.mode==='grounded'?'戰鬥機在陸地待命，按 F 起飛':'戰鬥機已在空中；可飛到陸地上方降落');
+  }else{
+    boat.position.set(seaVoyage.x,BOAT_WATERLINE_Y,seaVoyage.z);
+    boat.rotation.set(0,seaVoyage.heading,0);
+  }
+  if(flightControls)flightControls.hidden=!fighter;
+  if(fighter)setStampGuidanceEnabled(false);
+  const navToggle=document.querySelector('#nav-toggle'),navPanel=document.querySelector('#nav-panel');
+  if(navToggle)navToggle.hidden=fighter;
+  if(navPanel&&fighter)navPanel.hidden=true;
+  const guide=document.querySelector('#stamp-guidance-toggle');if(guide)guide.hidden=fighter;
+  const mapGuide=document.querySelector('.world-map-guide-toggle');if(mapGuide)mapGuide.hidden=fighter;
+  camera.position.set(fighter ? .18 : .5,fighter ? .34 : .75,fighter ? 1.35 : 2.2).applyAxisAngle(new THREE.Vector3(0,1,0),boat.rotation.y).add(boat.position);
+}
+addEventListener('vehiclechange',event=>activateVehicle(event.detail));
+if(currentVehicleType()==='fighter')activateVehicle({previous:null,type:'fighter'});
+else{boat.position.set(seaVoyage.x,BOAT_WATERLINE_Y,seaVoyage.z);boat.rotation.y=seaVoyage.heading;}
+const saveVoyage = () => {
+  if(currentVehicleType()==='fighter'){saveAircraft();return;}
+  seaVoyage={x:boat.position.x,z:boat.position.z,heading:boat.rotation.y};
+  try { localStorage.setItem(VOYAGE_KEY,JSON.stringify(seaVoyage)); } catch { /* private mode */ }
+};
+setInterval(() => { if (document.visibilityState === 'visible') saveVoyage(); }, 3000);   // a second, hidden game tab must not overwrite the voyage being played
+addEventListener('pagehide', saveVoyage);
+const atParam = new URLSearchParams(location.search).get('at')?.split(',').map(Number);   // ?at=14.5,120.8 starts there (for checking far regions)
+if (atParam?.length === 2 && atParam.every(Number.isFinite)) { const start = geoToWorld({ latitude: atParam[0], longitude: atParam[1] }); boat.position.x = start.x; boat.position.z = start.y; if(currentVehicleType()==='fighter'){aircraft.x=start.x;aircraft.z=start.y;aircraft.mode='hover';aircraft.y=Math.max(aircraft.y,terrainHeightAt(start.x,start.y)+.6);syncAircraft();} }
+const headingParam = new URLSearchParams(location.search).get('heading');   // ?heading=270 starts facing west (for checking views)
+if (headingParam !== null && !Number.isNaN(Number(headingParam))) {boat.rotation.y = -THREE.MathUtils.degToRad(Number(headingParam));if(currentVehicleType()==='fighter')aircraft.heading=boat.rotation.y;}
+camera.position.set(currentVehicleType()==='fighter' ? .18 : .5, currentVehicleType()==='fighter' ? .34 : .75, currentVehicleType()==='fighter' ? 1.35 : 2.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
 loading?.remove();
+window.__gameStarted = true;
+{ const hint = document.querySelector('#quality-state'); if (hint) hint.textContent = quality.name; }
+addLand();   // after the saved or ?at= position is restored, so the first detail streams in around it
+revealGame();
 renderer.setAnimationLoop(animate);
+
+// The help list and the autopilot panel are folded into two corner buttons.
+for (const [buttonId, panelId, focus] of [['controls-toggle', 'controls-panel', null], ['nav-toggle', 'nav-panel', 'nav-input']]) {
+  const button = document.querySelector(`#${buttonId}`), panel = document.querySelector(`#${panelId}`);
+  button?.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    button.setAttribute('aria-expanded', String(!panel.hidden));
+    button.blur();
+    if (!panel.hidden && focus) document.querySelector(`#${focus}`)?.focus();
+  });
+}

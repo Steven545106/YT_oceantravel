@@ -88,10 +88,10 @@
   function frame(now) {
     const delta = Math.min((now - last) / 1000, .05);
     last = now; time += delta;
-    if (keys.has('w')) speed += delta * 3.3;
-    if (keys.has('s')) speed -= delta * 2.5;
+    if ((keys.has('w') || keys.has('arrowup'))) speed += delta * 3.3;
+    if ((keys.has('s') || keys.has('arrowdown'))) speed -= delta * 2.5;
     speed *= Math.pow(.46, delta); speed = Math.max(-4, Math.min(12, speed));
-    const turn = (keys.has('a') ? 1 : 0) - (keys.has('d') ? 1 : 0);
+    const turn = ((keys.has('a') || keys.has('arrowleft')) ? 1 : 0) - ((keys.has('d') || keys.has('arrowright')) ? 1 : 0);
     heading += turn * delta * (.58 + Math.abs(speed) * .09) * Math.sign(speed || 1);
     const horizon = height * (wideView ? .48 : .41);
     const sunX = width * .7 + Math.sin(heading) * width * .07;
@@ -106,7 +106,10 @@
 
   addEventListener('resize', resize);
   addEventListener('keydown', (event) => {
-    const key = event.key.toLowerCase(); keys.add(key);
+    if (event.target.isContentEditable || ['INPUT','TEXTAREA','SELECT'].includes(event.target.tagName)) return;
+    const key = event.key.toLowerCase();
+    if (['arrowup','arrowdown','arrowleft','arrowright'].includes(key)) event.preventDefault();
+    keys.add(key);
     if (key === 'c') wideView = !wideView;
     if (key === 'r') { speed = 0; heading = 0; }
   });

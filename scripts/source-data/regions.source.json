@@ -1,0 +1,29 @@
+{
+  "description": "Region registry source. scripts/build_regions.py turns this plus the coast / DEM / place files listed here into dist/Data/regions.json and the streamed tiles under dist/Data/coast, dist/Data/dem and dist/Data/places. Country order is the display order (stamp book, search groups).",
+  "coastTolerance": 0.05,
+  "chunkDegrees": 2,
+  "demTileDegrees": 2,
+  "overviewPixelsPerDegree": 40,
+  "demMaxMeters": 4000,
+  "worldBounds": { "minX": -120, "maxX": 900, "minZ": -760, "maxZ": 330 },
+  "nav": { "cell": 2, "barrierKm": 12 },
+  "exaggeration": { "default": 1.15, "areas": [{ "bounds": [118, 21.7, 122.3, 25.5], "value": 1.9 }] },
+  "countries": [
+    { "code": "tw", "name": "台灣", "label": "TAIWAN", "coast": "taiwan_coast.json", "reliefStep": 0.05,
+      "aliases": ["台灣", "臺灣", "台湾", "Taiwan", "TW", "中華民國", "Republic of China"] },
+    { "code": "jp", "name": "日本", "label": "JAPAN", "coast": "japan_coast.json", "reliefStep": 0.2,
+      "aliases": ["日本", "日本国", "Japan", "JP", "Nippon", "Nihon"] },
+    { "code": "ph", "name": "菲律賓", "label": "PHILIPPINES", "coast": "philippines_coast.json", "reliefStep": 0.2,
+      "aliases": ["菲律賓", "菲律宾", "Philippines", "PH", "呂宋", "Luzon"] },
+    { "code": "kr", "name": "韓國", "label": "KOREA", "coast": "korea_coast.json", "reliefStep": 0.2,
+      "aliases": ["韓國", "南韓", "大韓民國", "韩国", "Korea", "South Korea", "Republic of Korea", "KR", "한국", "대한민국"] },
+    { "code": "kp", "name": "北韓", "label": "N. KOREA", "coast": "north_korea_coast.json", "reliefStep": 0.2,
+      "aliases": ["北韓", "朝鮮", "北朝鮮", "朝鲜", "North Korea", "DPRK", "KP", "북한", "조선"] }
+  ],
+  "places": "places.json",
+  "dem": [
+    { "id": "tw", "file": "taiwan_dem.png", "bounds": [118.0, 21.8, 122.1, 26.5] },
+    { "id": "ph", "file": "philippines_dem.png", "bounds": [116.8, 12.0, 124.6, 21.2], "quality": 90 },
+    { "id": "ea", "file": "japan_dem.webp", "bounds": [122.9, 24.0, 154.1, 45.7], "quality": 90 }
+  ]
+}

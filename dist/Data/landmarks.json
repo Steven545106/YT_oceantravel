@@ -1,0 +1,1217 @@
+{
+  "landmarks": [
+    {
+      "country": "日本",
+      "name": "東京鐵塔",
+      "lat": 35.65861,
+      "lon": 139.74544,
+      "type": "tokyoTower",
+      "realHeight": 333,
+      "aliases": [
+        "東京タワー",
+        "Tokyo Tower"
+      ],
+      "intro": "1958 年落成，高 333 公尺，靈感來自巴黎艾菲爾鐵塔，是東京最具代表性的電波塔，紅白相間的鋼架在夜晚亮燈。"
+    },
+    {
+      "country": "日本",
+      "name": "東京晴空塔",
+      "lat": 35.71006,
+      "lon": 139.81075,
+      "type": "skytree",
+      "realHeight": 634,
+      "aliases": [
+        "東京スカイツリー",
+        "Tokyo Skytree",
+        "晴空塔"
+      ],
+      "intro": "2012 年開業，高 634 公尺，位於墨田區，是目前日本最高的建築，也是世界上數一數二的自立式電波塔。"
+    },
+    {
+      "country": "日本",
+      "name": "淺草寺",
+      "lat": 35.7148,
+      "lon": 139.7967,
+      "type": "sensoji",
+      "realHeight": 53,
+      "aliases": [
+        "浅草寺",
+        "雷門",
+        "淺草",
+        "Senso-ji",
+        "Sensoji"
+      ],
+      "intro": "東京最古老的寺院之一，相傳創建於 628 年；門口的雷門掛著巨大的紅燈籠，仲見世通是熱鬧的參道。"
+    },
+    {
+      "country": "日本",
+      "name": "大阪城",
+      "lat": 34.68725,
+      "lon": 135.52597,
+      "type": "osakaCastle",
+      "realHeight": 55,
+      "aliases": [
+        "大阪城",
+        "Osaka Castle"
+      ],
+      "options": {},
+      "intro": "豐臣秀吉於 1583 年開始興建，如今的天守閣是 1931 年重建，外觀五層，頂層黑底飾有金色老虎。"
+    },
+    {
+      "country": "日本",
+      "name": "姬路城",
+      "lat": 34.8394,
+      "lon": 134.6939,
+      "type": "himeji",
+      "realHeight": 46,
+      "aliases": [
+        "姫路城",
+        "白鷺城",
+        "Himeji Castle"
+      ],
+      "options": {},
+      "intro": "世界文化遺產，因潔白的外牆被稱為「白鷺城」，現存天守建於 17 世紀初，是日本保存最完整的古城。"
+    },
+    {
+      "country": "日本",
+      "name": "清水寺",
+      "lat": 34.99487,
+      "lon": 135.78507,
+      "type": "kiyomizu",
+      "realHeight": 20,
+      "aliases": [
+        "Kiyomizu-dera",
+        "Kiyomizudera"
+      ],
+      "intro": "京都東山的古寺，相傳創建於 778 年；主堂的「清水舞台」以數百根木柱支撐，從山壁伸出，不使用一根釘子。"
+    },
+    {
+      "country": "日本",
+      "name": "金閣寺",
+      "lat": 35.0394,
+      "lon": 135.7292,
+      "type": "pavilion",
+      "realHeight": 12.5,
+      "aliases": [
+        "鹿苑寺",
+        "Kinkaku-ji",
+        "Kinkakuji"
+      ],
+      "intro": "正式名稱鹿苑寺，三層樓閣上兩層貼著金箔，倒映在鏡湖池中；1950 年曾遭縱火燒毀，1955 年重建。"
+    },
+    {
+      "country": "日本",
+      "name": "伏見稻荷大社",
+      "lat": 34.96714,
+      "lon": 135.7727,
+      "type": "toriiRow",
+      "realHeight": 10,
+      "aliases": [
+        "伏見稲荷大社",
+        "千本鳥居",
+        "Fushimi Inari"
+      ],
+      "intro": "京都稻荷神社的總本宮，山徑上排列著數千座朱紅色的千本鳥居，形成一條條橘色隧道。"
+    },
+    {
+      "country": "日本",
+      "name": "東大寺",
+      "lat": 34.68893,
+      "lon": 135.83985,
+      "type": "daibutsuden",
+      "realHeight": 49,
+      "aliases": [
+        "大仏殿",
+        "Todaiji",
+        "Todai-ji",
+        "奈良大佛"
+      ],
+      "intro": "奈良的古剎，大佛殿是世界最大的木造建築之一，殿中供奉 752 年開眼的盧舍那大佛。"
+    },
+    {
+      "country": "日本",
+      "name": "嚴島神社",
+      "lat": 34.2959,
+      "lon": 132.3197,
+      "type": "toriiGreat",
+      "realHeight": 16.6,
+      "aliases": [
+        "厳島神社",
+        "嚴島",
+        "宮島",
+        "嚴島神社大鳥居",
+        "Itsukushima"
+      ],
+      "sea": true,
+      "intro": "位於廣島宮島的世界文化遺產，社殿建在海灘上，漲潮時彷彿浮在海面；海中的大鳥居是最著名的景色。"
+    },
+    {
+      "country": "日本",
+      "name": "廣島原爆圓頂",
+      "lat": 34.39553,
+      "lon": 132.4536,
+      "type": "dome",
+      "realHeight": 25,
+      "aliases": [
+        "原爆ドーム",
+        "原爆圓頂館",
+        "廣島和平紀念公園",
+        "Genbaku Dome",
+        "廣島"
+      ],
+      "intro": "原為 1915 年落成的產業獎勵館，1945 年原子彈爆炸後只剩下鋼骨穹頂與磚牆，1996 年列入世界遺產。"
+    },
+    {
+      "country": "日本",
+      "name": "日光東照宮",
+      "lat": 36.7581,
+      "lon": 139.5988,
+      "type": "toshogu",
+      "realHeight": 36,
+      "aliases": [
+        "東照宮",
+        "Nikko Toshogu",
+        "日光"
+      ],
+      "intro": "祭祀德川家康的神社，1617 年創建，華麗的陽明門佈滿金色與彩色雕刻，被譽為「看到日暮都不嫌久」的門。"
+    },
+    {
+      "country": "日本",
+      "name": "松本城",
+      "lat": 36.2388,
+      "lon": 137.9687,
+      "type": "matsumoto",
+      "realHeight": 29,
+      "aliases": [
+        "烏城",
+        "Matsumoto Castle"
+      ],
+      "options": {},
+      "intro": "長野縣的國寶古城，黑色的五層天守完成於 16 世紀末，現存天守是日本最古老的五層天守之一。"
+    },
+    {
+      "country": "日本",
+      "name": "名古屋城",
+      "lat": 35.1856,
+      "lon": 136.8996,
+      "type": "nagoyaCastle",
+      "realHeight": 48,
+      "aliases": [
+        "Nagoya Castle"
+      ],
+      "options": {},
+      "intro": "德川家康於 1612 年完成的城堡，天守屋頂上有一對閃閃發亮的金鯱，是名古屋的象徵。"
+    },
+    {
+      "country": "日本",
+      "name": "熊本城",
+      "lat": 32.8064,
+      "lon": 130.7058,
+      "type": "kumamotoCastle",
+      "realHeight": 33,
+      "aliases": [
+        "Kumamoto Castle"
+      ],
+      "options": {},
+      "intro": "加藤清正修築的名城，以高聳傾斜的石垣聞名；2016 年熊本地震造成嚴重損壞，之後持續修復。"
+    },
+    {
+      "country": "日本",
+      "name": "首里城",
+      "lat": 26.217,
+      "lon": 127.7195,
+      "type": "shuri",
+      "realHeight": 27,
+      "aliases": [
+        "Shuri Castle",
+        "那霸首里城"
+      ],
+      "intro": "琉球王國的王宮，融合中國與日本風格的紅色正殿，2019 年一場大火燒毀正殿，目前正在重建。"
+    },
+    {
+      "country": "日本",
+      "name": "美麗海水族館",
+      "lat": 26.6942,
+      "lon": 127.8779,
+      "type": "aquarium",
+      "realHeight": 26,
+      "aliases": [
+        "美ら海水族館",
+        "Churaumi Aquarium"
+      ],
+      "intro": "位於沖繩本部町，以巨大的「黑潮之海」水槽聞名，裡面可以看到鯨鯊與鬼蝠魟悠游。"
+    },
+    {
+      "country": "日本",
+      "name": "鎌倉大佛",
+      "lat": 35.3167,
+      "lon": 139.5358,
+      "type": "buddha",
+      "realHeight": 13.4,
+      "aliases": [
+        "鎌倉大仏",
+        "高徳院",
+        "Kamakura Daibutsu"
+      ],
+      "intro": "高德院的阿彌陀佛銅像，露天而坐，高約 13.4 公尺，是鎌倉最著名的景點。"
+    },
+    {
+      "country": "日本",
+      "name": "白川鄉合掌村",
+      "lat": 36.2575,
+      "lon": 136.9064,
+      "type": "gassho",
+      "realHeight": 15,
+      "aliases": [
+        "白川郷",
+        "合掌村",
+        "Shirakawa-go"
+      ],
+      "intro": "岐阜縣山谷裡的合掌造聚落，茅草屋頂像雙手合十般陡峭，以抵擋大雪，1995 年列入世界遺產。"
+    },
+    {
+      "country": "日本",
+      "name": "函館五稜郭",
+      "lat": 41.7969,
+      "lon": 140.757,
+      "type": "fort",
+      "realHeight": 107,
+      "aliases": [
+        "五稜郭",
+        "Goryokaku"
+      ],
+      "intro": "1864 年竣工的星形西式城塞，是日本最早的西式城郭；中央的五稜郭塔可以俯瞰整個星形。"
+    },
+    {
+      "country": "日本",
+      "name": "札幌電視塔",
+      "lat": 43.0611,
+      "lon": 141.3564,
+      "type": "sapporoTower",
+      "realHeight": 147,
+      "aliases": [
+        "さっぽろテレビ塔",
+        "Sapporo TV Tower"
+      ],
+      "intro": "1957 年啟用，高約 147 公尺，立在大通公園東端，是札幌市中心的地標。"
+    },
+    {
+      "country": "日本",
+      "name": "京都塔",
+      "lat": 34.9875,
+      "lon": 135.759,
+      "type": "kyotoTower",
+      "realHeight": 131,
+      "aliases": [
+        "京都タワー",
+        "Kyoto Tower"
+      ],
+      "intro": "1964 年落成，高約 131 公尺，位於京都車站前，造型像一座白色的燈塔。"
+    },
+    {
+      "country": "日本",
+      "name": "通天閣",
+      "lat": 34.6525,
+      "lon": 135.5063,
+      "type": "tsutenkaku",
+      "realHeight": 108,
+      "aliases": [
+        "Tsutenkaku"
+      ],
+      "intro": "大阪新世界的象徵，現今的塔建於 1956 年，高約 108 公尺，頂端的霓虹燈會用顏色預告隔天的天氣。"
+    },
+    {
+      "country": "日本",
+      "name": "東京迪士尼樂園",
+      "lat": 35.6329,
+      "lon": 139.8804,
+      "type": "fairyCastle",
+      "realHeight": 51,
+      "aliases": [
+        "東京ディズニーランド",
+        "迪士尼",
+        "Tokyo Disneyland"
+      ],
+      "intro": "1983 年開幕，是迪士尼在美國以外的第一座樂園；灰姑娘城堡是園區的中心地標。"
+    },
+    {
+      "country": "日本",
+      "name": "明石海峽大橋",
+      "lat": 34.617,
+      "lon": 135.022,
+      "type": "bridge",
+      "realHeight": 298,
+      "aliases": [
+        "明石海峡大橋",
+        "Akashi Kaikyo Bridge"
+      ],
+      "yaw": 1.45,
+      "options": {
+        "worldSpan": 1.0,
+        "style": "akashi"
+      },
+      "intro": "1998 年通車，連接神戶與淡路島，主跨距約 1,991 公尺，是世界上跨距最長的吊橋之一。"
+    },
+    {
+      "country": "日本",
+      "name": "瀨戶大橋",
+      "lat": 34.375,
+      "lon": 133.803,
+      "type": "bridge",
+      "realHeight": 149,
+      "aliases": [
+        "瀬戸大橋",
+        "Seto Ohashi"
+      ],
+      "yaw": 1.5,
+      "options": {
+        "worldSpan": 0.85,
+        "style": "seto",
+        "doubleDeck": true
+      },
+      "intro": "1988 年通車，連接本州岡山縣與四國香川縣，是橫跨瀨戶內海的公路與鐵路兩用橋。"
+    },
+    {
+      "country": "日本",
+      "name": "富士山",
+      "lat": 35.3606,
+      "lon": 138.7274,
+      "type": "fuji",
+      "realHeight": 0,
+      "aliases": [
+        "Mount Fuji",
+        "Fuji",
+        "富士"
+      ],
+      "labelHeight": 2500,
+      "intro": "標高 3,776 公尺，日本最高峰，是一座標準的圓錐形火山，2013 年被列為世界文化遺產。"
+    },
+    {
+      "country": "日本",
+      "name": "繩文杉",
+      "lat": 30.361,
+      "lon": 130.5319,
+      "type": "tree",
+      "realHeight": 25,
+      "aliases": [
+        "縄文杉",
+        "屋久島",
+        "Yakushima",
+        "Jomon Sugi"
+      ],
+      "options": {
+        "girth": 0.14
+      },
+      "intro": "屋久島山中的古老杉樹，樹齡估計超過兩千年，是屋久島原始森林的象徵。"
+    },
+    {
+      "country": "日本",
+      "name": "長崎和平祈念像",
+      "lat": 32.7765,
+      "lon": 129.8634,
+      "type": "statue",
+      "realHeight": 20,
+      "aliases": [
+        "平和祈念像",
+        "長崎",
+        "Nagasaki Peace Park"
+      ],
+      "intro": "1955 年落成，位於長崎和平公園，右手指向天空象徵原爆的威脅，左手平伸代表和平。"
+    },
+    {
+      "country": "台灣",
+      "name": "台北101",
+      "lat": 25.034,
+      "lon": 121.5645,
+      "type": "virtual",
+      "realHeight": 0,
+      "aliases": [
+        "臺北101",
+        "101大樓",
+        "Taipei 101"
+      ],
+      "intro": "2004 年完工，高 508 公尺，曾是世界最高的建築；外型靈感來自竹節，象徵節節高升。"
+    },
+    {
+      "country": "台灣",
+      "name": "基隆燈塔",
+      "lat": 25.155417,
+      "lon": 121.747733,
+      "type": "virtual",
+      "realHeight": 0,
+      "aliases": [
+        "Keelung Lighthouse"
+      ],
+      "intro": "立在基隆港西側入口的山丘上，1900 年建成，是台灣第一座磚造燈塔，現為市定古蹟並開放參觀。"
+    },
+    {
+      "country": "台灣",
+      "name": "鵝鑾鼻燈塔",
+      "lat": 21.90225,
+      "lon": 120.852667,
+      "type": "virtual",
+      "realHeight": 0,
+      "aliases": [
+        "屏東燈塔",
+        "鵝鑾鼻",
+        "Eluanbi Lighthouse"
+      ],
+      "intro": "位於台灣最南端的恆春半島，1883 年建成，有「東亞之光」的美稱，至今仍引導著往來船隻。"
+    },
+    {
+      "country": "台灣",
+      "name": "故宮博物院",
+      "lat": 25.1023,
+      "lon": 121.5485,
+      "type": "palaceMuseum",
+      "realHeight": 25,
+      "aliases": [
+        "國立故宮博物院",
+        "National Palace Museum",
+        "故宮"
+      ],
+      "intro": "1965 年在台北外雙溪落成，收藏約七十萬件中華文物，翠玉白菜與肉形石是鎮館之寶。"
+    },
+    {
+      "country": "台灣",
+      "name": "中正紀念堂",
+      "lat": 25.03444,
+      "lon": 121.52167,
+      "type": "cks",
+      "realHeight": 70,
+      "aliases": [
+        "CKS Memorial Hall",
+        "Chiang Kai-shek Memorial Hall"
+      ],
+      "intro": "1980 年落成，為紀念蔣中正而建，白色大殿覆著藍色八角形屋頂，前方是自由廣場與牌樓。"
+    },
+    {
+      "country": "台灣",
+      "name": "日月潭",
+      "lat": 23.8582,
+      "lon": 120.915,
+      "type": "lake",
+      "realHeight": 46,
+      "aliases": [
+        "Sun Moon Lake",
+        "慈恩塔"
+      ],
+      "options": {
+        "worldRadius": 0.4
+      },
+      "intro": "台灣最大的天然淡水湖，位於南投，湖心的拉魯島把湖面分成「日」「月」兩半；湖邊的慈恩塔高約 46 公尺。"
+    },
+    {
+      "country": "台灣",
+      "name": "阿里山",
+      "lat": 23.51,
+      "lon": 120.804,
+      "type": "alishan",
+      "realHeight": 45,
+      "aliases": [
+        "阿里山神木",
+        "Alishan"
+      ],
+      "options": {},
+      "intro": "嘉義山區的名勝，以日出、雲海、神木與阿里山森林鐵路聞名，鐵路於 1912 年通車。"
+    },
+    {
+      "country": "台灣",
+      "name": "太魯閣",
+      "lat": 24.1588,
+      "lon": 121.6214,
+      "type": "gorge",
+      "realHeight": 150,
+      "aliases": [
+        "太魯閣國家公園",
+        "Taroko Gorge"
+      ],
+      "intro": "位於花蓮，立霧溪切穿大理石岩層而成的峽谷，兩側峭壁近乎垂直，太魯閣國家公園成立於 1986 年。"
+    },
+    {
+      "country": "台灣",
+      "name": "高雄85大樓",
+      "lat": 22.61162,
+      "lon": 120.30016,
+      "type": "sky85",
+      "realHeight": 378,
+      "aliases": [
+        "85大樓",
+        "東帝士85",
+        "85 Sky Tower"
+      ],
+      "intro": "1997 年完工，共 85 層，外型像兩條腿合成一座塔，曾是台灣最高的建築，從高雄港可以遠遠望見。"
+    },
+    {
+      "country": "台灣",
+      "name": "國立中山大學",
+      "lat": 22.62524,
+      "lon": 120.26586,
+      "type": "nsysu",
+      "realHeight": 24,
+      "seal": "中山大學",
+      "aliases": [
+        "中山大學",
+        "高雄中山大學",
+        "國立高雄中山大學",
+        "中山大學西子灣校區",
+        "NSYSU",
+        "National Sun Yat-sen University"
+      ],
+      "yaw": -1.5707963267948966,
+      "intro": "國立中山大學位於高雄西子灣，校園倚靠壽山、面向臺灣海峽。入口紅磚校名塔、海堤步道及山海相依的校園，是西子灣沿岸的代表景觀。"
+    },
+    {
+      "country": "台灣",
+      "name": "安平古堡",
+      "lat": 23.001,
+      "lon": 120.1603,
+      "type": "anping",
+      "realHeight": 18,
+      "aliases": [
+        "熱蘭遮城",
+        "Fort Zeelandia",
+        "安平"
+      ],
+      "options": {},
+      "intro": "台南安平的古堡，前身是荷蘭人於 1624 年起興建的熱蘭遮城，是台灣最早的城堡之一。"
+    },
+    {
+      "country": "台灣",
+      "name": "赤崁樓",
+      "lat": 22.9972,
+      "lon": 120.2024,
+      "type": "chihkan",
+      "realHeight": 20,
+      "aliases": [
+        "Chihkan Tower",
+        "Fort Provintia"
+      ],
+      "intro": "台南的古蹟，前身是荷蘭人 1653 年興建的普羅民遮城，現存的樓閣是後來清代所建。"
+    },
+    {
+      "country": "台灣",
+      "name": "九份",
+      "lat": 25.1093,
+      "lon": 121.8445,
+      "type": "village",
+      "realHeight": 14,
+      "aliases": [
+        "九份老街",
+        "Jiufen"
+      ],
+      "intro": "新北瑞芳的山城，因昔日採金而繁榮，如今以階梯老街、茶樓與夜晚亮起的紅燈籠聞名。",
+      "yaw": 3.1416
+    },
+    {
+      "country": "台灣",
+      "name": "淡水紅毛城",
+      "lat": 25.175,
+      "lon": 121.4323,
+      "type": "hongmaocheng",
+      "realHeight": 15,
+      "aliases": [
+        "紅毛城",
+        "Fort San Domingo",
+        "淡水"
+      ],
+      "options": {},
+      "intro": "前身為 17 世紀西班牙人建的聖多明哥城，後經荷蘭人重建，紅磚主堡約於 1644 年完成，後來也曾作為英國領事館。"
+    },
+    {
+      "country": "台灣",
+      "name": "玉山",
+      "lat": 23.47,
+      "lon": 120.9573,
+      "type": "yushan",
+      "realHeight": 0,
+      "aliases": [
+        "Yushan",
+        "Jade Mountain",
+        "玉山主峰"
+      ],
+      "labelHeight": 2500,
+      "intro": "標高 3,952 公尺，是台灣最高峰，也是東北亞第一高山，山頂在冬季常有積雪。"
+    },
+    {
+      "country": "台灣",
+      "name": "佛光山",
+      "lat": 22.75708,
+      "lon": 120.44135,
+      "type": "foguangshan",
+      "realHeight": 108,
+      "aliases": [
+        "佛光山佛陀紀念館",
+        "Fo Guang Shan"
+      ],
+      "options": {},
+      "intro": "位於高雄大樹，1967 年由星雲大師創建；佛陀紀念館的大佛高約 108 公尺，兩側排列著八座寶塔。",
+      "preserveLocation": true
+    },
+    {
+      "country": "台灣",
+      "name": "野柳",
+      "lat": 25.2085,
+      "lon": 121.6935,
+      "type": "queenhead",
+      "realHeight": 8,
+      "aliases": [
+        "野柳地質公園",
+        "Yehliu"
+      ],
+      "options": {},
+      "intro": "新北萬里的海岬地質公園，海蝕與風化把岩石雕成蕈狀；著名的「女王頭」脖子日漸變細，是園區的代表。",
+      "yaw": 0.785
+    },
+    {
+      "country": "韓國",
+      "name": "景福宮",
+      "lat": 37.5796,
+      "lon": 126.977,
+      "type": "gyeongbokgung",
+      "realHeight": 22,
+      "aliases": [
+        "경복궁",
+        "Gyeongbokgung"
+      ],
+      "intro": "1395 年興建的朝鮮王朝正宮，是首爾最大的古宮，正門光化門前常有守門將換崗儀式。"
+    },
+    {
+      "country": "韓國",
+      "name": "昌德宮",
+      "lat": 37.5794,
+      "lon": 126.991,
+      "type": "changdeokgung",
+      "realHeight": 15,
+      "aliases": [
+        "창덕궁",
+        "Changdeokgung"
+      ],
+      "intro": "1405 年建造的朝鮮離宮，1997 年列入世界遺產，後方的祕苑是朝鮮王室的庭園。"
+    },
+    {
+      "country": "韓國",
+      "name": "首爾塔",
+      "lat": 37.5512,
+      "lon": 126.9882,
+      "type": "seoulTower",
+      "realHeight": 236,
+      "aliases": [
+        "N首爾塔",
+        "N Seoul Tower",
+        "南山塔",
+        "N서울타워"
+      ],
+      "intro": "位於南山山頂，1971 年啟用，塔高約 236 公尺，塔身的欄杆上掛滿情侶的同心鎖。"
+    },
+    {
+      "country": "韓國",
+      "name": "樂天世界大廈",
+      "lat": 37.5126,
+      "lon": 127.1025,
+      "type": "lotteTower",
+      "realHeight": 555,
+      "aliases": [
+        "樂天塔",
+        "Lotte World Tower",
+        "롯데월드타워"
+      ],
+      "intro": "2017 年完工，高 555 公尺，是韓國最高的建築，外型像一支向上收窄的玻璃尖塔。"
+    },
+    {
+      "country": "韓國",
+      "name": "63大廈",
+      "lat": 37.5199,
+      "lon": 126.9402,
+      "type": "building63",
+      "realHeight": 249,
+      "aliases": [
+        "63빌딩",
+        "63 Building"
+      ],
+      "intro": "1985 年完工，高約 249 公尺，金色的玻璃帷幕在陽光下閃閃發光，曾是亞洲最高的建築之一。"
+    },
+    {
+      "country": "韓國",
+      "name": "水原華城",
+      "lat": 37.287,
+      "lon": 127.0119,
+      "type": "hwaseong",
+      "realHeight": 15,
+      "aliases": [
+        "華城",
+        "Hwaseong",
+        "수원화성"
+      ],
+      "intro": "朝鮮正祖於 1796 年完成的城郭，城牆蜿蜒約五公里，1997 年列入世界遺產。"
+    },
+    {
+      "country": "韓國",
+      "name": "佛國寺",
+      "lat": 35.79,
+      "lon": 129.332,
+      "type": "bulguksa",
+      "realHeight": 14,
+      "aliases": [
+        "불국사",
+        "Bulguksa",
+        "慶州"
+      ],
+      "intro": "慶州的佛教古寺，相傳始建於 751 年（新羅時代），多寶塔與釋迦塔並立於大雄殿前，1995 年列入世界遺產。"
+    },
+    {
+      "country": "韓國",
+      "name": "釜山塔",
+      "lat": 35.1008,
+      "lon": 129.0324,
+      "type": "busanTower",
+      "realHeight": 120,
+      "aliases": [
+        "부산타워",
+        "Busan Tower"
+      ],
+      "intro": "位於釜山龍頭山公園，1973 年落成，塔高約 120 公尺，可以俯瞰整座港灣。"
+    },
+    {
+      "country": "韓國",
+      "name": "廣安大橋",
+      "lat": 35.1479,
+      "lon": 129.1306,
+      "type": "bridge",
+      "realHeight": 100,
+      "aliases": [
+        "광안대교",
+        "Gwangan Bridge"
+      ],
+      "yaw": 0.8,
+      "options": {
+        "worldSpan": 1.25,
+        "doubleDeck": true,
+        "style": "gwangan"
+      },
+      "intro": "2003 年通車的釜山跨海吊橋，夜間的燈光秀讓大橋成為釜山夜景的代表。"
+    },
+    {
+      "country": "韓國",
+      "name": "海雲台",
+      "lat": 35.1587,
+      "lon": 129.1604,
+      "type": "haeundae",
+      "realHeight": 411.6,
+      "aliases": [
+        "해운대",
+        "Haeundae"
+      ],
+      "intro": "釜山最著名的海水浴場與度假區，以弧形沙灘、海岸步道與高樓群聞名；東端的 LCT 地標塔高約 411.6 公尺。"
+    },
+    {
+      "country": "韓國",
+      "name": "城山日出峰",
+      "lat": 33.458,
+      "lon": 126.9425,
+      "type": "seongsan",
+      "realHeight": 0,
+      "aliases": [
+        "성산일출봉",
+        "Seongsan Ilchulbong"
+      ],
+      "labelHeight": 1200,
+      "options": {
+        "color": 15769632
+      },
+      "intro": "濟州島東邊的火山口，在海面突起，形如巨大的城堡，2007 年列入世界自然遺產。"
+    },
+    {
+      "country": "韓國",
+      "name": "漢拏山",
+      "lat": 33.3617,
+      "lon": 126.5292,
+      "type": "hallasan",
+      "realHeight": 0,
+      "aliases": [
+        "한라산",
+        "Hallasan"
+      ],
+      "labelHeight": 2500,
+      "intro": "濟州島中央的火山，標高 1,947 公尺，是韓國最高峰，山頂有火口湖白鹿潭。"
+    },
+    {
+      "country": "韓國",
+      "name": "雪嶽山",
+      "lat": 38.119,
+      "lon": 128.4655,
+      "type": "seoraksan",
+      "realHeight": 0,
+      "aliases": [
+        "설악산",
+        "Seoraksan"
+      ],
+      "labelHeight": 2500,
+      "intro": "位於江原道的國立公園，標高約 1,708 公尺，以秋天的紅葉與嶙峋的岩峰聞名。"
+    },
+    {
+      "country": "韓國",
+      "name": "智異山",
+      "lat": 35.337,
+      "lon": 127.7306,
+      "type": "jirisan",
+      "realHeight": 0,
+      "aliases": [
+        "지리산",
+        "Jirisan"
+      ],
+      "labelHeight": 2500,
+      "intro": "標高約 1,915 公尺，是韓國第一座國立公園（1967 年），橫跨三個道。"
+    },
+    {
+      "country": "韓國",
+      "name": "獨島",
+      "lat": 37.2414,
+      "lon": 131.8647,
+      "type": "dokdo",
+      "realHeight": 98,
+      "aliases": [
+        "독도",
+        "Dokdo",
+        "竹島"
+      ],
+      "sea": true,
+      "intro": "位於東海（日本海）的小島群，由火山岩構成，目前由韓國實際管轄，日本也主張主權；這裡只是一份地理介紹。"
+    },
+    {
+      "country": "韓國",
+      "name": "海印寺",
+      "lat": 35.8009,
+      "lon": 128.098,
+      "type": "haeinsa",
+      "realHeight": 15,
+      "aliases": [
+        "해인사",
+        "Haeinsa"
+      ],
+      "intro": "慶尚南道伽倻山的古寺，保存著八萬大藏經木版，1995 年列入世界遺產。"
+    },
+    {
+      "country": "韓國",
+      "name": "南怡島",
+      "lat": 37.791,
+      "lon": 127.525,
+      "type": "namiIsland",
+      "realHeight": 20,
+      "aliases": [
+        "남이섬",
+        "Nami Island"
+      ],
+      "options": {},
+      "intro": "江原道北漢江上的小島，以兩旁高大水杉樹形成的林蔭道聞名，是許多韓劇的取景地。"
+    },
+    {
+      "country": "北韓",
+      "name": "白頭山",
+      "lat": 41.985,
+      "lon": 128.08,
+      "type": "peak",
+      "realHeight": 0,
+      "aliases": [
+        "백두산",
+        "Baekdusan",
+        "Paektu",
+        "長白山"
+      ],
+      "labelHeight": 2500,
+      "intro": "朝鮮半島的最高峰，標高約 2,744 公尺，是一座火山，山頂有火口湖天池。"
+    },
+    {
+      "country": "北韓",
+      "name": "平壤凱旋門",
+      "lat": 39.0447,
+      "lon": 125.7532,
+      "type": "triumphArch",
+      "realHeight": 60,
+      "aliases": [
+        "개선문",
+        "Arch of Triumph",
+        "凱旋門"
+      ],
+      "intro": "1982 年落成，高約 60 公尺，為紀念朝鮮抗日而建，比巴黎凱旋門還略高。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "聖奧斯汀教堂",
+      "lat": 14.5891,
+      "lon": 120.9752,
+      "type": "sanAgustin",
+      "realHeight": 30,
+      "aliases": [
+        "San Agustin Church",
+        "馬尼拉王城",
+        "Intramuros",
+        "馬尼拉"
+      ],
+      "intro": "1607 年完工，位於馬尼拉王城內，是菲律賓現存最古老的石造教堂，1993 年與其他巴洛克教堂一同列入世界遺產。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "黎剎紀念碑",
+      "lat": 14.5818,
+      "lon": 120.977,
+      "type": "rizalMonument",
+      "realHeight": 13,
+      "aliases": [
+        "Rizal Monument",
+        "黎剎公園",
+        "Rizal Park"
+      ],
+      "intro": "位於馬尼拉黎剎公園，紀念菲律賓民族英雄何塞·黎剎，1913 年揭幕，方尖碑前是黎剎的銅像，長年有儀隊守衛。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "聖地牙哥堡",
+      "lat": 14.5951,
+      "lon": 120.9706,
+      "type": "fortSantiago",
+      "realHeight": 10,
+      "aliases": [
+        "Fort Santiago",
+        "聖地亞哥堡"
+      ],
+      "intro": "西班牙人自 16 世紀末以石材修建的要塞，位於巴石河口、守衛馬尼拉王城；黎剎就義前曾被囚禁於此。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "維甘古城",
+      "lat": 17.5713,
+      "lon": 120.3867,
+      "type": "vigan",
+      "realHeight": 12,
+      "aliases": [
+        "Vigan",
+        "Calle Crisologo",
+        "克里索洛哥街"
+      ],
+      "intro": "呂宋島西北的西班牙殖民城鎮，克里索洛哥街兩旁保存著石造底層、木造樓上的古宅與石板路，1999 年列入世界遺產。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "巴拿威梯田",
+      "lat": 16.919,
+      "lon": 121.059,
+      "type": "banaueTerraces",
+      "realHeight": 60,
+      "aliases": [
+        "Banaue Rice Terraces",
+        "伊富高梯田",
+        "Ifugao"
+      ],
+      "intro": "伊富高族在陡峭山坡上開墾的梯田，已有上千年歷史，被譽為「世界第八大奇蹟」，伊富高梯田於 1995 年列入世界遺產。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "百勝灘",
+      "lat": 14.249,
+      "lon": 121.594,
+      "type": "pagsanjanFalls",
+      "realHeight": 91,
+      "aliases": [
+        "Pagsanjan Falls",
+        "Cavinti Falls"
+      ],
+      "intro": "位於拉古納省的瀑布，遊客搭乘當地船夫划的小船逆流穿過峽谷，最後抵達落差約 90 公尺的瀑布。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "塔爾火山",
+      "lat": 14.002,
+      "lon": 120.993,
+      "type": "taal",
+      "realHeight": 311,
+      "aliases": [
+        "Taal Volcano",
+        "塔阿爾火山",
+        "大雅台",
+        "Tagaytay"
+      ],
+      "intro": "八打雁省塔爾湖中的火山島，是世界上最小的活火山之一，火山島裡還有火口湖，2020 年曾大規模噴發。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "博哈多爾角燈塔",
+      "lat": 18.5096,
+      "lon": 120.5967,
+      "type": "bojeador",
+      "realHeight": 20,
+      "aliases": [
+        "Cape Bojeador Lighthouse",
+        "Burgos Lighthouse"
+      ],
+      "intro": "1892 年啟用的西班牙時代燈塔，立在呂宋島西北角的山丘上，八角形磚造塔身，至今仍在運作。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "巴斯科燈塔",
+      "lat": 20.4567,
+      "lon": 121.9606,
+      "type": "bascoLighthouse",
+      "realHeight": 20,
+      "aliases": [
+        "Basco Lighthouse",
+        "Naidi Lighthouse",
+        "巴丹群島",
+        "Batanes",
+        "巴斯科"
+      ],
+      "intro": "巴丹群島首府巴斯科奈迪山上的白色燈塔，四周是起伏的綠色草坡與海景；巴丹群島是菲律賓最北端的省份，與台灣隔著巴士海峽相望。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "馬永火山",
+      "lat": 13.2572,
+      "lon": 123.6856,
+      "type": "peak",
+      "realHeight": 0,
+      "aliases": [
+        "Mayon",
+        "Mount Mayon",
+        "Mayon Volcano"
+      ],
+      "intro": "標高約 2,463 公尺，位於呂宋島東南的阿爾拜省，以近乎完美的圓錐外形聞名，是菲律賓最活躍的火山之一。",
+      "labelHeight": 2500,
+      "options": {
+        "smoke": true
+      }
+    },
+    {
+      "country": "台灣",
+      "name": "勝利星村",
+      "lat": 22.678632,
+      "lon": 120.48449,
+      "type": "shengliVillage",
+      "realHeight": 12,
+      "displayScale": 1.15,
+      "aliases": [
+        "勝利新村",
+        "勝利星村創意生活園區",
+        "屏東勝利星村",
+        "V.I.P Zone",
+        "屏東市勝利星村"
+      ],
+      "seal": "勝利星村",
+      "intro": "屏東市保存日式軍官宿舍街廓的歷史文化園區。模型以將軍之屋與眷舍為參考，呈現黑瓦斜屋頂、綠色木窗、紅門、雨淋板與老樹庭院；街區配置為遊戲微縮。",
+      "preserveLocation": true,
+      "maxDisplayFootprintKm": 4,
+      "displayLocation": {
+        "lat": 22.52,
+        "lon": 120.52
+      }
+    },
+    {
+      "country": "台灣",
+      "name": "平溪天燈",
+      "lat": 25.04269,
+      "lon": 121.77667,
+      "type": "pingxiLanterns",
+      "realHeight": 25,
+      "displayScale": 1.25,
+      "aliases": [
+        "十分老街",
+        "十分天燈",
+        "平溪天燈節",
+        "Pingxi Sky Lantern",
+        "Shifen"
+      ],
+      "seal": "平溪天燈",
+      "intro": "以新北市平溪區十分老街的鐵道與天燈文化為場景：商店緊鄰平溪線鐵軌，紙天燈承載祈願升空。模型濃縮沿街店屋、列車、電線與開口紙天燈，並非天燈節會場的完整測繪。"
+    },
+    {
+      "name": "三仙台",
+      "lat": 23.126135,
+      "lon": 121.42168,
+      "type": "sanxiantai",
+      "realHeight": 30,
+      "worldSized": true,
+      "sea": true,
+      "preserveLocation": true,
+      "maxDisplayFootprintKm": 6,
+      "aliases": [
+        "三仙台八拱橋",
+        "Sanxiantai"
+      ],
+      "intro": "以臺東成功三仙台的紅灰色八拱步橋、火山岩離岸島與三塊巨石為參考。模型呈現八段波浪橋面、鏤空拱腹、階梯與海岸植被；展示為微縮配置，不含現行整修工程。",
+      "country": "台灣",
+      "seal": "三仙台"
+    },
+    {
+      "name": "花瓶岩",
+      "lat": 22.35566,
+      "lon": 120.38076,
+      "type": "vaseRock",
+      "realHeight": 9,
+      "sea": true,
+      "preserveLocation": true,
+      "maxDisplayFootprintKm": 3,
+      "aliases": [
+        "小琉球花瓶岩",
+        "花瓶石",
+        "Vase Rock"
+      ],
+      "intro": "小琉球白沙港附近的珊瑚礁岩地標。岩體受海蝕形成頭大頸細的外形，岩頂生長海濱植物；模型以凹凸珊瑚岩、細頸、寬闊岩帽與低矮礁棚呈現。",
+      "country": "台灣",
+      "seal": "花瓶岩"
+    },
+    {
+      "name": "龜山島",
+      "lat": 24.842373,
+      "lon": 121.95015,
+      "type": "guishanIsland",
+      "realHeight": 401,
+      "worldSized": true,
+      "terrainReplacement": true,
+      "sea": true,
+      "preserveLocation": true,
+      "aliases": [
+        "龜山",
+        "Guishan Island",
+        "Turtle Island"
+      ],
+      "intro": "宜蘭頭城外海的火山島，輪廓具有龜首、龜背與龜尾。模型沿用遊戲真實海岸輪廓，補上植被山坡、裸露岩壁、龜尾湖、北岸碼頭與海底溫泉水色；地形細節為實景參考的程序近似。",
+      "country": "台灣",
+      "seal": "龜山島"
+    },
+    {
+      "name": "澎湖跨海大橋",
+      "lat": 23.657823,
+      "lon": 119.55453,
+      "type": "penghuBridge",
+      "realHeight": 18,
+      "worldSized": true,
+      "sea": true,
+      "preserveLocation": true,
+      "aliases": [
+        "跨海大橋",
+        "澎湖大橋",
+        "Penghu Great Bridge"
+      ],
+      "intro": "連接澎湖白沙與西嶼、跨越吼門水道的公路橋。模型以白色半圓橋門、雙車道橋面、連續橋墩、護欄及舊橋遺構為參考，跨度與橋頭配置為航海遊戲微縮。",
+      "country": "台灣",
+      "seal": "澎湖跨海大橋"
+    },
+    {
+      "name": "雙心石滬",
+      "lat": 23.220077,
+      "lon": 119.445973,
+      "type": "twinHearts",
+      "realHeight": 2,
+      "worldSized": true,
+      "sea": true,
+      "preserveLocation": true,
+      "aliases": [
+        "七美雙心石滬",
+        "頂隙滬",
+        "Twin Hearts Stone Weir"
+      ],
+      "intro": "澎湖七美東北岸的傳統石滬，以玄武岩與珊瑚礁堆砌成雙心滬房及導魚堤。模型呈現低矮疊石、心形水池與潮間帶礁棚，採退潮展示意象，並未模擬真實潮汐。",
+      "country": "台灣",
+      "seal": "雙心石滬"
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+// Visual reference notes, checked against the operators and public tourism bodies in October 2026.
+// These are stylised exterior reconstructions; surroundings are compressed for the game.
+export const JAPAN_REFERENCE_MODELS = [
+  {type:'tokyoTower',name:'東京鐵塔',features:'橙紅白相間鋼架、四腳拱形開口、150／250公尺雙展望台與外部階梯',sources:['https://www.japan.travel/en/spot/1709/']},
+  {type:'skytree',name:'東京晴空塔',features:'藍白鋼管、三角形漸變圓形塔身、三層天望甲板與螺旋天望迴廊',sources:['https://www.tokyo-skytree.jp/group/pre-learning/skytree/construction/parts.php']},
+  {type:'sensoji',name:'淺草寺',features:'雷門大燈籠與門神、仲見世、寶藏門、本堂與五重塔',sources:['https://www.senso-ji.jp/english/']},
+  {type:'osakaCastle',name:'大阪城',features:'白牆綠銅瓦、黑金頂層、金鯱、石垣護城河與入口橋',sources:['https://osakacastle.net/']},
+  {type:'himeji',name:'姬路城',features:'白鷺城連立天守、灰瓦白漆屋脊、狹間與曲折城門',sources:['https://www.japan.travel/en/japans-local-treasures/best-view-spots-himeji-castle-2023/']},
+  {type:'kiyomizu',name:'清水寺',features:'檜皮葺大屋頂、懸空木舞台、三重塔、音羽瀑布三道水流',sources:['https://www.kiyomizudera.or.jp/en/visit/']},
+  {type:'pavilion',name:'金閣寺',features:'木白一層與金箔二三層、深色窗格、鳳凰與鏡湖池岸',sources:['https://www.shokoku-ji.jp/en/kinkakuji/guide/']},
+  {type:'toriiRow',name:'伏見稻荷大社',features:'兩列朱紅千本鳥居、黑色柱腳、石階山道與白狐守護像',sources:['https://inari.jp/en/map/spot_07/']},
+  {type:'daibutsuden',name:'東大寺',features:'大佛殿雙層大屋頂、金色鴟尾、木柱門扉、鏤空南大門與八角燈籠',sources:['https://www.japan.travel/en/spot/1009/']},
+  {type:'toriiGreat',name:'嚴島神社',features:'橫向寬展的大鳥居、六根支柱、黑笠木、海上高腳迴廊',sources:['https://miyajima.or.jp/english/spot/spot_ootorii.html','https://www.miyajima.or.jp/english/spot/spot_itsukushima.html']},
+  {type:'dome',name:'廣島原爆圓頂',features:'鏤空鋼骨圓頂、可透視窗洞、殘破磚牆與裸露樓板',sources:['https://www.city.hiroshima.lg.jp/english/peace/1029869/1009933.html']},
+  {type:'toshogu',name:'日光東照宮',features:'陽明門白金雕飾、彩色斗栱、唐門與三猿雕刻板',sources:['https://www.visitnikko.jp/en/spots/nikko-toshogu-shrine/']},
+  {type:'matsumoto',name:'松本城',features:'黑色下見板、白色簷帶、月見櫓紅欄杆與朱紅埋橋',sources:['https://www.japan.travel/en/spot/1356/']},
+  {type:'nagoyaCastle',name:'名古屋城',features:'綠銅瓦大小天守、金鯱、木色本丸御殿與唐破風入口',sources:['https://www.japan.travel/en/spot/1241/']},
+  {type:'kumamotoCastle',name:'熊本城',features:'黑白大小天守、陡曲武者返石垣與長塀狹間',sources:['https://www.japan.travel/en/spot/638/']},
+  {type:'shuri',name:'首里城',features:'朱紅正殿、赤瓦白灰屋脊、金龍柱、紅白御庭；採復元正殿意象，非施工現況',sources:['https://oki-park.jp/shurijo/highlights/','https://oki-park.jp/shurijo/ticket_guide/11416']},
+  {type:'aquarium',name:'美麗海水族館',features:'臨海階梯式館舍、寬簷柱廊、入口鯨鯊雕像；黑潮大水槽位於室內',sources:['https://churaumi.okinawa/sp/en/area/floormap/','https://churaumi.okinawa/sp/en/outline/']},
+  {type:'buddha',name:'鎌倉大佛',features:'露天青銅阿彌陀佛、螺髮長耳、禪定手印與衣褶',sources:['https://www.japan.travel/en/spot/1588/']},
+  {type:'gassho',name:'白川鄉合掌村',features:'厚茅草陡斜屋頂、木構三角山牆、格窗、田畦與庄川',sources:['https://www.japan.travel/en/spot/2031/']},
+  {type:'fort',name:'函館五稜郭',features:'星形石垣與水濠、箱館奉行所、位於濠外的星形塔身與五角形展望台',sources:['https://www.hakodate.travel/en/sightseeing-spots/view/goryokaku-park/','https://www.goryokaku-tower.co.jp/facility/about/']},
+  {type:'sapporoTower',name:'札幌電視塔',features:'橙紅鋼架、四面數字時鐘、90公尺展望台與大通公園',sources:['https://www.tv-tower.co.jp/']},
+  {type:'kyotoTower',name:'京都塔',features:'白色燈塔狀塔身、環形觀景窗、紅白尖端與基座樓層立面',sources:['https://www.kyoto-tower.jp/en/']},
+  {type:'tsutenkaku',name:'通天閣',features:'灰鋼鏤空塔架、直排招牌、八角展望台、下方街道與外挑觀景平台',sources:['https://www.japan.travel/en/spot/1100/']},
+  {type:'fairyCastle',name:'東京迪士尼樂園',features:'灰姑娘城堡灰白石牆、藍色尖塔、不對稱高塔與真正拱形穿廊',sources:['https://www.tokyodisneyresort.jp/en/tdl/attraction/detail/166/']},
+  {id:'akashiBridge',type:'bridge',options:{style:'akashi',span:2},name:'明石海峽大橋',features:'淡灰綠主塔、寬跨吊索、深桁架、三車道雙向公路與中央分隔',sources:['https://www.jb-honshi.co.jp/english/corp_index/technology/introduction/introduction_akashi.html']},
+  {id:'setoBridge',type:'bridge',options:{style:'seto',span:2,doubleDeck:true},name:'瀨戶大橋',features:'以南備讚瀨戶大橋代表：白色吊橋、上層公路、下層雙軌鐵路與桁架',sources:['https://www.jb-honshi.co.jp/seto-ohashi/shoukai/6kyou6.html']},
+  {type:'fuji',name:'富士山',features:'替換旗標為山頂火口、剣ヶ峰、殘雪與淺間神社小社；遊戲山體沿用真實地形',sources:['https://www.fujisan-climb.jp/en/ohachimeguri/','https://www.fujisan-climb.jp/en/livecamera/']},
+  {type:'tree',name:'繩文杉',features:'不規則粗大瘤狀樹幹、盤根苔蘚、折曲枝條與保護觀景木棧道',sources:['https://www.yakushima.or.jp/assets/file/guidance/tozan_guide_en2026.pdf']},
+  {type:'statue',name:'長崎和平祈念像',features:'藍綠青銅坐像、右手指天、左臂水平、閉眼與花崗岩基座',sources:['https://www.japan.travel/en/spot/349/']}
+];
