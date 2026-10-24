@@ -1,12 +1,12 @@
 {
   "description": "Region registry source. Countries: `unlock` lists the achievement ids needed (circuit ids, or master:<name> for a full stamp set); `arrival` names a reach-the-coast achievement. Circuits: sail round `centre` within 60 km of the country's coast in all 16 sectors (`saveKey` keeps old saves working). scripts/build_regions.py turns this plus the coast / DEM / place files listed here into dist/Data/regions.json and the streamed tiles under dist/Data/coast, dist/Data/dem and dist/Data/places. Country order is the display order (stamp book, search groups).",
-  "coastTolerance": 0.05,
+  "outline": { "tolerance": 0.4, "minAreaKm2": 2 },
   "chunkDegrees": 2,
   "demTileDegrees": 2,
   "overviewPixelsPerDegree": 40,
   "demMaxMeters": 4000,
-  "worldBounds": { "minX": -490, "maxX": 900, "minZ": -760, "maxZ": 745 },
-  "nav": { "cell": 2, "barrierKm": 12 },
+  "world": { "seamLongitude": -168, "north": 75, "south": -60, "ghostDegrees": 12 },
+  "nav": { "cell": 6, "barrierKm": 12 },
   "exaggeration": { "default": 1.15, "areas": [{ "bounds": [119.95, 21.7, 122.3, 25.5], "value": 1.9 }] },
   "countries": [
     { "code": "tw", "name": "台灣", "label": "TAIWAN", "coast": "taiwan_coast.json", "reliefStep": 0.05,

@@ -16,17 +16,33 @@ export const REFERENCE_MERCATOR_Y = mercatorY(TAIWAN_REFERENCE.latitude);
 export const ELUANBI_LIGHTHOUSE = { latitude: 21.902250, longitude: 120.852667 };
 export const ELUANBI_OFFSHORE_START = { latitude: 21.8423, longitude: 120.8761 };   // about 6 km off the lighthouse, outside the 5 km limit
 
-export function geoToWorld({ latitude, longitude }) {
+// The world wraps round east-west. Longitudes are laid out from the seam meridian (in the Bering Sea, on a 2° chunk
+// boundary; the same value is `world.seamLongitude` in scripts/source-data/regions.source.json) eastwards for 360°, so
+// x runs from WORLD_MIN_X to WORLD_MAX_X; a vehicle leaving one end comes back in at the other (wrapWorldX), and land
+// near the seam is also kept as a copy one world width away so the far side is there before you cross.
+export const SEAM_LONGITUDE = -168;
+export const WORLD_WIDTH = 2 * Math.PI * WORLD_UNITS_PER_RADIAN;
+export const WORLD_MIN_X = THREE.MathUtils.degToRad(SEAM_LONGITUDE - TAIWAN_REFERENCE.longitude) * WORLD_UNITS_PER_RADIAN;
+export const WORLD_MAX_X = WORLD_MIN_X + WORLD_WIDTH;
+// a longitude in the world's frame: [SEAM_LONGITUDE, SEAM_LONGITUDE + 360)
+export const frameLongitude = (longitude) => SEAM_LONGITUDE + ((((longitude - SEAM_LONGITUDE) % 360) + 360) % 360);
+// an x moved by whole world widths into [WORLD_MIN_X, WORLD_MAX_X)
+export const wrapWorldX = (x) => WORLD_MIN_X + ((((x - WORLD_MIN_X) % WORLD_WIDTH) + WORLD_WIDTH) % WORLD_WIDTH);
+
+// `wrap: false` keeps the longitude as given (for the copies of land beyond the seam).
+export function geoToWorld({ latitude, longitude }, wrap = true) {
   return new THREE.Vector2(
-    THREE.MathUtils.degToRad(longitude - TAIWAN_REFERENCE.longitude) * WORLD_UNITS_PER_RADIAN,
+    THREE.MathUtils.degToRad((wrap ? frameLongitude(longitude) : longitude) - TAIWAN_REFERENCE.longitude) * WORLD_UNITS_PER_RADIAN,
     -(mercatorY(latitude) - REFERENCE_MERCATOR_Y) * WORLD_UNITS_PER_RADIAN
   );
 }
 
+// Longitude comes back in (-180, 180], wherever x is.
 export function worldToGeo(x, z) {
+  const longitude = TAIWAN_REFERENCE.longitude + THREE.MathUtils.radToDeg(x / WORLD_UNITS_PER_RADIAN);
   return {
     latitude: THREE.MathUtils.radToDeg(2 * Math.atan(Math.exp(REFERENCE_MERCATOR_Y - z / WORLD_UNITS_PER_RADIAN)) - Math.PI / 2),
-    longitude: TAIWAN_REFERENCE.longitude + THREE.MathUtils.radToDeg(x / WORLD_UNITS_PER_RADIAN)
+    longitude: 180 - ((((180 - longitude) % 360) + 360) % 360)
   };
 }
 

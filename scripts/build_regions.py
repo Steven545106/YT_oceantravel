@@ -2,15 +2,16 @@
 
 Outputs (all under dist/Data):
   regions.json          the region registry the game reads at start-up
-  coast/base.json       every island, simplified (Douglas-Peucker in game units), grouped by chunk
-  coast/<chunk>.json    full-detail outlines, one file per country per chunk of `chunkDegrees`
+  coast/outline.json    the always-loaded layer: islands of outline.minAreaKm2 or more, simplified to outline.tolerance
+                        game units (Douglas-Peucker), cut at the chunk grid
+  coast/<chunk>.json    full-detail outlines, one file per country per `chunkDegrees` cell, cut at the cell edges
   dem/overview.png      one low-resolution heightmap over every DEM source
   dem/<src>-<i>-<j>.png full-resolution heightmap tiles (all-sea tiles are skipped)
   places/<code>.json    place names per country
   nav/sea-grid.png      coarse sea grid for long routes: 255 land, k = sea near country k (for locked-country
                         barriers), 0 open sea; one pixel per `nav.cell` game units over `worldBounds`
 
-Needs Pillow:  python3 -m venv <dir> && <dir>/bin/pip install pillow
+Needs Pillow and shapely:  python3 -m venv <dir> && <dir>/bin/pip install pillow shapely
 Run from the project root:  <dir>/bin/python scripts/build_regions.py
 """
 import json
@@ -18,6 +19,7 @@ import math
 import os
 import shutil
 from PIL import Image, ImageDraw, ImageFilter
+from shapely.geometry import Polygon, box
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, 'scripts', 'source-data')
@@ -30,6 +32,20 @@ merc = lambda lat: math.log(math.tan(math.pi / 4 + math.radians(lat) / 2))
 REF_Y = merc(REF_LAT)
 def to_world(lon, lat):
     return math.radians(lon - REF_LON) * UNITS_PER_RADIAN, -(merc(lat) - REF_Y) * UNITS_PER_RADIAN
+
+
+WORLD_WIDTH = 2 * math.pi * UNITS_PER_RADIAN
+
+
+def world_frame(config):
+    """The game's east-west frame (see dist/geo.js): x from the seam meridian eastwards for one world width; copies of
+    land within `ghostDegrees` of the seam reach past both ends, and latitude stops at `north` / `south`."""
+    world = config['world']
+    min_x = to_world(world['seamLongitude'], 0)[0]
+    ghost = math.radians(world['ghostDegrees']) * UNITS_PER_RADIAN
+    return {'minX': min_x, 'maxX': min_x + WORLD_WIDTH, 'ghost': ghost,
+            'bounds': {'minX': round(min_x - ghost, 3), 'maxX': round(min_x + WORLD_WIDTH + ghost, 3),
+                       'minZ': round(to_world(0, world['north'])[1], 3), 'maxZ': round(to_world(0, world['south'])[1], 3)}}
 
 
 def decode(flat):
@@ -86,35 +102,70 @@ def simplify(points, scale, tolerance):
     return kept
 
 
+def ring_area_km2(points, scale):
+    twice = 0
+    for i in range(len(points)):
+        (x1, y1), (x2, y2) = points[i - 1], points[i]
+        twice += x1 * y2 - x2 * y1
+    return abs(twice) / 2 / scale / scale * 111.32 ** 2 * math.cos(math.radians(points[0][1] / scale))
+
+
+def clip_to_cells(points, deg, scale):
+    """Cut one outline (integer lon/lat pairs) at the chunk grid: [((cx, cy), points, cut)], cut = touches a cell edge."""
+    lons = [p[0] for p in points]
+    lats = [p[1] for p in points]
+    cx0, cx1 = math.floor(min(lons) / scale / deg), math.floor(max(lons) / scale / deg)
+    cy0, cy1 = math.floor(min(lats) / scale / deg), math.floor(max(lats) / scale / deg)
+    if cx0 == cx1 and cy0 == cy1:
+        return [((cx0, cy0), points, False)]
+    polygon = Polygon(points).buffer(0)
+    out = []
+    for cx in range(cx0, cx1 + 1):
+        for cy in range(cy0, cy1 + 1):
+            cell = box(cx * deg * scale, cy * deg * scale, (cx + 1) * deg * scale, (cy + 1) * deg * scale)
+            part = polygon.intersection(cell)
+            for piece in [part] if isinstance(part, Polygon) else [g for g in getattr(part, 'geoms', []) if isinstance(g, Polygon)]:
+                ring = [(round(x), round(y)) for x, y in piece.exterior.coords[:-1]]
+                ring = [p for i, p in enumerate(ring) if p != ring[i - 1]]
+                if len(ring) >= 3:
+                    out.append(((cx, cy), ring, True))
+    return out
+
+
 def build_coast(config, countries):
+    """Full-detail outlines go into one file per country per `chunkDegrees` cell, cut at the cell edges so a continent
+    streams in pieces. The always-loaded outline layer keeps only islands of at least outline.minAreaKm2, simplified to
+    outline.tolerance game units and cut the same way."""
     scale = None
     chunks = []
-    base = []
+    outline_chunks = []
     deg = config['chunkDegrees']
+    outline_tolerance, outline_min = config['outline']['tolerance'], config['outline']['minAreaKm2']
     for country in countries:
         data = json.load(open(os.path.join(SOURCE, country['coast'])))
         scale = scale or data['scale']
         assert data['scale'] == scale, 'all coast files must share one integer scale'
-        groups = {}
+        detail, outline = {}, {}
         for flat in data['polys']:
             points = decode(flat)
-            lons = [p[0] / scale for p in points]
-            lats = [p[1] / scale for p in points]
-            centre = ((min(lons) + max(lons)) / 2, (min(lats) + max(lats)) / 2)
-            key = (math.floor(centre[0] / deg), math.floor(centre[1] / deg))
-            group = groups.setdefault(key, {'polys': [], 'bounds': [math.inf, math.inf, -math.inf, -math.inf]})
-            group['polys'].append(points)
-            b = group['bounds']
-            group['bounds'] = [min(b[0], min(lons)), min(b[1], min(lats)), max(b[2], max(lons)), max(b[3], max(lats))]
-        for (cx, cy), group in sorted(groups.items()):
+            for key, ring, cut in clip_to_cells(points, deg, scale):
+                detail.setdefault(key, []).append((ring, cut))
+            if ring_area_km2(points, scale) >= outline_min:
+                for key, ring, cut in clip_to_cells(simplify(points, scale, outline_tolerance), deg, scale):
+                    outline.setdefault(key, []).append((ring, cut))
+        for (cx, cy), pieces in sorted(detail.items()):
             chunk_id = f"{country['code']}-{cx}-{cy}"
             file = f'coast/{chunk_id}.json'
-            json.dump({'scale': scale, 'polys': [encode(p) for p in group['polys']]}, open(os.path.join(OUT, file), 'w'), separators=(',', ':'))
-            base.append({'id': chunk_id, 'polys': [encode(simplify(p, scale, config['coastTolerance'])) for p in group['polys']]})
-            chunks.append({'id': chunk_id, 'country': country['code'], 'file': file, 'islands': len(group['polys']),
-                           'bounds': [round(v, 5) for v in group['bounds']]})
-    json.dump({'scale': scale, 'chunks': base}, open(os.path.join(OUT, 'coast', 'base.json'), 'w'), separators=(',', ':'))
-    return {'scale': scale, 'tolerance': config['coastTolerance'], 'base': 'coast/base.json', 'chunks': chunks}
+            lons = [p[0] / scale for ring, _ in pieces for p in ring]
+            lats = [p[1] / scale for ring, _ in pieces for p in ring]
+            json.dump({'scale': scale, 'polys': [encode(ring) for ring, _ in pieces], 'cut': [i for i, (_, cut) in enumerate(pieces) if cut]},
+                      open(os.path.join(OUT, file), 'w'), separators=(',', ':'))
+            rough = outline.get((cx, cy), [])
+            outline_chunks.append({'id': chunk_id, 'polys': [encode(ring) for ring, _ in rough], 'cut': [i for i, (_, cut) in enumerate(rough) if cut]})
+            chunks.append({'id': chunk_id, 'country': country['code'], 'file': file, 'islands': len(pieces),
+                           'bounds': [round(min(lons), 5), round(min(lats), 5), round(max(lons), 5), round(max(lats), 5)]})
+    json.dump({'scale': scale, 'chunks': outline_chunks}, open(os.path.join(OUT, 'coast', 'outline.json'), 'w'), separators=(',', ':'))
+    return {'scale': scale, 'tolerance': outline_tolerance, 'outline': 'coast/outline.json', 'chunks': chunks}
 
 
 def build_dem(config):
@@ -159,14 +210,33 @@ def build_dem(config):
             'tiles': tiles}
 
 
-def to_world_delta(points, scale):
-    return [to_world(lon / scale, lat / scale) for lon, lat in points]
-
-
 def build_nav_grid(config, countries):
-    bounds, cell = config['worldBounds'], config['nav']['cell']
-    cols, rows = math.ceil((bounds['maxX'] - bounds['minX']) / cell), math.ceil((bounds['maxZ'] - bounds['minZ']) / cell)
+    # one world width across (the grid wraps east-west), from the frame's north to south limit
+    frame, cell = world_frame(config), config['nav']['cell']
+    bounds = {'minX': frame['minX'], 'maxX': frame['maxX'], 'minZ': frame['bounds']['minZ'], 'maxZ': frame['bounds']['maxZ']}
+    cols = round((bounds['maxX'] - bounds['minX']) / cell)
+    cell = (bounds['maxX'] - bounds['minX']) / cols   # square cells, a whole number of them per world width
+    rows = math.ceil((bounds['maxZ'] - bounds['minZ']) / cell)
     pixel = lambda x, z: ((x - bounds['minX']) / cell, (z - bounds['minZ']) / cell)
+    seam = config['world']['seamLongitude']
+    def outlines_in_frame(flat, scale):
+        # longitudes kept continuous along the outline, the first one in the frame; drawn again one width over if it
+        # runs past either end
+        points = decode(flat)
+        first = seam + ((points[0][0] / scale - seam) % 360)
+        lons, prev = [], None
+        for lon, _ in points:
+            lon = lon / scale
+            lon = first if prev is None else prev + ((lon - prev + 180) % 360 - 180)
+            lons.append(lon)
+            prev = lon
+        world = [to_world(lon, lat / scale) for lon, (_, lat) in zip(lons, points)]
+        copies = [world]
+        if min(x for x, _ in world) < bounds['minX']:
+            copies.append([(x + WORLD_WIDTH, z) for x, z in world])
+        if max(x for x, _ in world) > bounds['maxX']:
+            copies.append([(x - WORLD_WIDTH, z) for x, z in world])
+        return [[pixel(x, z) for x, z in copy] for copy in copies]
     land = Image.new('L', (cols, rows), 0)
     land_draw = ImageDraw.Draw(land)
     grid = Image.new('L', (cols, rows), 0)
@@ -178,12 +248,11 @@ def build_nav_grid(config, countries):
         draw = ImageDraw.Draw(mask)
         max_lat = 0
         for flat in data['polys']:
-            points = decode(flat)
-            max_lat = max(max_lat, max(p[1] for p in points) / data['scale'])
-            polygon = [pixel(*xy) for xy in to_world_delta(points, data['scale'])]
-            if len(polygon) >= 3:
-                draw.polygon(polygon, fill=255, outline=255)
-                land_draw.polygon(polygon, fill=255, outline=255)
+            max_lat = max(max_lat, max(p[1] for p in decode(flat)) / data['scale'])
+            for polygon in outlines_in_frame(flat, data['scale']):
+                if len(polygon) >= 3:
+                    draw.polygon(polygon, fill=255, outline=255)
+                    land_draw.polygon(polygon, fill=255, outline=255)
         km_per_unit = math.cos(math.radians(max_lat)) / (math.cos(math.radians(REF_LAT)) * .25)
         reach = math.ceil((config['nav']['barrierKm'] / km_per_unit + cell * .71) / cell)
         near = mask.filter(ImageFilter.MaxFilter(2 * reach + 1))
@@ -191,7 +260,7 @@ def build_nav_grid(config, countries):
     grid.paste(255, mask=land)
     file = 'nav/sea-grid.png'
     grid.save(os.path.join(OUT, file), optimize=True)
-    return {'file': file, 'cell': cell, 'minX': bounds['minX'], 'minZ': bounds['minZ'], 'cols': cols, 'rows': rows,
+    return {'file': file, 'cell': cell, 'wrap': True, 'minX': bounds['minX'], 'minZ': bounds['minZ'], 'cols': cols, 'rows': rows,
             'countries': [c['code'] for c in countries]}
 
 
@@ -221,13 +290,14 @@ def main():
         'coast': build_coast(config, countries),
         'dem': build_dem(config),
         'placesCredit': build_places(config, countries),
-        'worldBounds': config['worldBounds'],
+        'world': {**config['world'], 'ghostUnits': round(world_frame(config)['ghost'], 3)},
+        'worldBounds': world_frame(config)['bounds'],
         'nav': build_nav_grid(config, countries),
     }
     json.dump(registry, open(os.path.join(OUT, 'regions.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
     sizes = {folder: sum(os.path.getsize(os.path.join(OUT, folder, f)) for f in os.listdir(os.path.join(OUT, folder))) for folder in ('coast', 'dem', 'places')}
     print(f"chunks {len(registry['coast']['chunks'])}, dem tiles {len(registry['dem']['tiles'])}, bytes {sizes}, "
-          f"base {os.path.getsize(os.path.join(OUT, 'coast', 'base.json'))}, overview {os.path.getsize(os.path.join(OUT, 'dem', 'overview.png'))}")
+          f"outline {os.path.getsize(os.path.join(OUT, 'coast', 'outline.json'))}, overview {os.path.getsize(os.path.join(OUT, 'dem', 'overview.png'))}")
 
 
 if __name__ == '__main__':

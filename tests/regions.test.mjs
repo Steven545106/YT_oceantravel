@@ -14,20 +14,18 @@ test('registry lists the countries in unlock order with codes, names and places'
   for(const country of COUNTRIES)assert.ok((await readJson(country.places)).places.length>=(["mo","bn"].includes(country.code)?20:100),country.code);
 });
 
-test('every coast chunk has a full-detail file matching its simplified outlines',async()=>{
-  const base=await readJson(REGIONS.coast.base);
-  assert.equal(base.chunks.length,REGIONS.coast.chunks.length);
-  let simplified=0,detailed=0;
+test('every coast chunk has a full-detail file, and the outline layer is a much lighter subset',async()=>{
+  const outline=await readJson(REGIONS.coast.outline);
+  assert.equal(outline.chunks.length,REGIONS.coast.chunks.length);
+  let rough=0,detailed=0;
   for(const chunk of REGIONS.coast.chunks){
-    const detail=await readJson(chunk.file),outline=base.chunks.find(entry=>entry.id===chunk.id);
+    const detail=await readJson(chunk.file),layer=outline.chunks.find(entry=>entry.id===chunk.id);
     assert.equal(detail.polys.length,chunk.islands,chunk.id);
-    assert.equal(outline.polys.length,chunk.islands,chunk.id);
-    for(let i=0;i<detail.polys.length;i++){
-      assert.ok(outline.polys[i].length>=6&&outline.polys[i].length<=detail.polys[i].length,`${chunk.id}#${i}`);
-      simplified+=outline.polys[i].length;detailed+=detail.polys[i].length;
-    }
+    assert.ok(layer.polys.length<=chunk.islands,chunk.id);
+    for(const list of [detail.cut,layer.cut])for(const i of list)assert.ok(Number.isInteger(i)&&i>=0,chunk.id);
+    rough+=layer.polys.reduce((n,p)=>n+p.length,0);detailed+=detail.polys.reduce((n,p)=>n+p.length,0);
   }
-  assert.ok(simplified<detailed/3,'the always-loaded outlines are much lighter than full detail');
+  assert.ok(rough<detailed/10,'the always-loaded outline layer is far lighter than full detail');
 });
 
 test('heightmap tiles exist and lie inside the overview',async()=>{

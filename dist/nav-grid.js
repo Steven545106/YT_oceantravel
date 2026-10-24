@@ -1,8 +1,10 @@
 // Pure grid-search helpers for the autopilot (no DOM or three.js, so they can be unit tested).
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
+// A grid with `wrap` set joins its east and west edges (the world grid); its columns are taken modulo `cols`.
+const wrapColumn = (grid, i) => grid.wrap ? ((i % grid.cols) + grid.cols) % grid.cols : i;
 export const gridCellOf = (grid, x, z) => ({
-  i: clamp(Math.floor((x - grid.minX) / grid.cell), 0, grid.cols - 1),
+  i: grid.wrap ? wrapColumn(grid, Math.floor((x - grid.minX) / grid.cell)) : clamp(Math.floor((x - grid.minX) / grid.cell), 0, grid.cols - 1),
   j: clamp(Math.floor((z - grid.minZ) / grid.cell), 0, grid.rows - 1)
 });
 export const gridCenterOf = (grid, i, j) => ({ x: grid.minX + (i + .5) * grid.cell, z: grid.minZ + (j + .5) * grid.cell });
@@ -13,7 +15,7 @@ export function nearestFreeCell(grid, i, j) {
     for (let dj = -radius; dj <= radius; dj++) {
       for (let di = -radius; di <= radius; di++) {
         if (Math.max(Math.abs(di), Math.abs(dj)) !== radius) continue;
-        const ni = i + di, nj = j + dj;
+        const ni = wrapColumn(grid, i + di), nj = j + dj;
         if (ni < 0 || nj < 0 || ni >= grid.cols || nj >= grid.rows || grid.blocked[nj * grid.cols + ni]) continue;
         const d = di * di + dj * dj;
         if (d < bestD) { bestD = d; best = { i: ni, j: nj }; }
@@ -60,7 +62,9 @@ export function findGridPath(grid, start, goal, partial = false) {
   };
   const goalIndex = goal.j * cols + goal.i;
   const heuristic = (index) => {
-    const dx = Math.abs((index % cols) - goal.i), dz = Math.abs(Math.floor(index / cols) - goal.j);
+    let dx = Math.abs((index % cols) - goal.i);
+    if (grid.wrap) dx = Math.min(dx, cols - dx);
+    const dz = Math.abs(Math.floor(index / cols) - goal.j);
     return dx + dz - .5858 * Math.min(dx, dz);
   };
   const startIndex = start.j * cols + start.i;
@@ -80,7 +84,7 @@ export function findGridPath(grid, start, goal, partial = false) {
     for (let dj = -1; dj <= 1; dj++) {
       for (let di = -1; di <= 1; di++) {
         if (!di && !dj) continue;
-        const ni = ci + di, nj = cj + dj;
+        const ni = wrapColumn(grid, ci + di), nj = cj + dj;
         if (ni < 0 || nj < 0 || ni >= cols || nj >= rows) continue;
         const next = nj * cols + ni;
         if (blocked[next] || closed[next]) continue;
@@ -108,7 +112,7 @@ export function gridLineClear(grid,a,b) {
   // Supercover traversal: check every touched cell, including both sides of a diagonal corner.
   const ax=(a.x-grid.minX)/grid.cell,az=(a.z-grid.minZ)/grid.cell;
   const bx=(b.x-grid.minX)/grid.cell,bz=(b.z-grid.minZ)/grid.cell;
-  const open=(i,j)=>i>=0&&j>=0&&i<grid.cols&&j<grid.rows&&!grid.blocked[j*grid.cols+i];
+  const open=(i,j)=>{i=wrapColumn(grid,i);return i>=0&&j>=0&&i<grid.cols&&j<grid.rows&&!grid.blocked[j*grid.cols+i];};
   let i=Math.floor(ax),j=Math.floor(az);const endI=Math.floor(bx),endJ=Math.floor(bz);
   if(!open(i,j)||!open(endI,endJ))return false;
   const dx=bx-ax,dz=bz-az,sx=Math.sign(dx),sz=Math.sign(dz);
@@ -130,6 +134,11 @@ export function gridLineClear(grid,a,b) {
 // Cut corners along a grid path wherever the straight line between two points stays in open water.
 export function smoothGridPath(grid, cells) {
   const points = cells.map(({ i, j }) => gridCenterOf(grid, i, j));
+  // across a wrapping grid's seam, keep x continuous (one world width further on) so the course does not jump back
+  if (grid.wrap) for (let k = 1; k < points.length; k++) {
+    const width = grid.cols * grid.cell, dx = points[k].x - points[k - 1].x;
+    if (Math.abs(dx) > width / 2) points[k] = { x: points[k].x - Math.sign(dx) * width, z: points[k].z };
+  }
   const smoothed = [points[0]];
   for (let from = 0; from < points.length - 1;) {
     let to = Math.min(points.length - 1, from + 250);

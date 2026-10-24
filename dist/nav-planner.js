@@ -178,12 +178,13 @@ function coarseGrid(){
     const id=sizes.length,queue=[k];piece[k]=id;let size=0;
     while(queue.length){
       const c=queue.pop(),i=c%cols;size++;
-      for(const n of [i>0?c-1:-1,i<cols-1?c+1:-1,c-cols,c+cols])if(n>=0&&n<piece.length&&!blocked[n]&&piece[n]<0){piece[n]=id;queue.push(n);}
+      const west=i>0?c-1:seaGrid.wrap?c+cols-1:-1,east=i<cols-1?c+1:seaGrid.wrap?c-cols+1:-1;
+      for(const n of [west,east,c-cols,c+cols])if(n>=0&&n<piece.length&&!blocked[n]&&piece[n]<0){piece[n]=id;queue.push(n);}
     }
     sizes.push(size);
   }
   const openSea=sizes.indexOf(Math.max(...sizes));
-  return coarse={cols,rows,cell:seaGrid.cell,minX:seaGrid.minX,minZ:seaGrid.minZ,blocked,near,piece,openSea};
+  return coarse={cols,rows,cell:seaGrid.cell,minX:seaGrid.minX,minZ:seaGrid.minZ,wrap:!!seaGrid.wrap,blocked,near,piece,openSea};
 }
 // Nearest coarse cell of the open sea, searched outwards ring by ring from a cell.
 function nearestOpenSea(grid,cell){
@@ -209,9 +210,25 @@ function seaPoint(p){
   return null;
 }
 // Returns undefined when the coarse grid does not apply (short trip, no grid), so the caller plans locally instead.
+// On a world that wraps east-west the coarse course keeps x continuous across the seam (x past the world's east end
+// is the west end one world width on). Local planning and checks happen in the frame the islands are in: each leg is
+// moved by whole world widths to start inside it, and moved back afterwards.
+const worldWidth=()=>seaGrid?.wrap?seaGrid.cols*seaGrid.cell:Infinity;
+const frameShift=(p)=>{const width=worldWidth();return Number.isFinite(width)?-Math.floor((p.x-seaGrid.minX)/width)*width:0;};
+const moved=(p,dx)=>({...p,x:p.x+dx});
+function localRoute(a,targets){
+  const dx=frameShift(a),width=worldWidth();
+  // targets go to the copy nearest the start
+  const near=targets.map(t=>Number.isFinite(width)?moved(t,Math.round((a.x-t.x)/width)*width+dx):moved(t,dx));
+  const route=planSeaRoute(moved(a,dx),near);
+  return route&&{...route,waypoints:route.waypoints.map(p=>moved(p,-dx)),target:moved(route.target,-dx)};
+}
+const localSafe=(a,points,limit=2.1)=>{const dx=frameShift(a);return safeRoute(moved(a,dx),points.map(p=>moved(p,dx)),limit);};
 function planLongRoute(from,candidates){
   const goal=candidates[0];
-  if(!seaGrid||Math.hypot(goal.x-from.x,goal.z-from.z)<LONG_TRIP)return undefined;
+  if(!seaGrid)return undefined;
+  const width=worldWidth(),gap=Math.abs(goal.x-from.x);
+  if(Math.hypot(Number.isFinite(width)?Math.min(gap,width-gap):gap,goal.z-from.z)<LONG_TRIP)return undefined;
   const grid=coarseGrid();
   let startCell=nearestFreeCell(grid,...Object.values(gridCellOf(grid,from.x,from.z)));
   const goalCell=nearestFreeCell(grid,...Object.values(gridCellOf(grid,goal.x,goal.z)));
@@ -220,7 +237,7 @@ function planLongRoute(from,candidates){
   const waypoints=[];let current=from,clearance=2.1;
   if(grid.piece[startCell.j*grid.cols+startCell.i]!==grid.openSea){
     const outCell=nearestOpenSea(grid,startCell),out=outCell&&seaPoint(gridCenterOf(grid,outCell.i,outCell.j));
-    const exit=out&&planSeaRoute(from,[out]);
+    const exit=out&&localRoute(from,[out]);
     if(!exit)return null;
     waypoints.push(...exit.waypoints);current=exit.target;clearance=Math.min(clearance,exit.clearance??2.1);
     startCell=nearestFreeCell(grid,...Object.values(gridCellOf(grid,current.x,current.z)));
@@ -228,23 +245,27 @@ function planLongRoute(from,candidates){
   // a bay behind a strait narrower than a coarse cell is closed on this grid: get as close as it allows, finish locally
   const cells=findGridPath(grid,startCell,goalCell)??findGridPath(grid,startCell,goalCell,true);
   if(!cells)return undefined;
-  const corners=smoothGridPath(grid,cells).slice(1,-1).map(seaPoint).filter(Boolean);
+  // the course from the coarse grid starts at the start cell's copy nearest `current`
+  const course=smoothGridPath(grid,cells),lead=Number.isFinite(width)?Math.round((current.x-course[0].x)/width)*width:0;
+  const corners=course.slice(1,-1).map(p=>moved(p,lead)).map(p=>{const dx=frameShift(p),q=seaPoint(moved(p,dx));return q&&moved(q,-dx);}).filter(Boolean);
   for(const corner of corners){
     if(Math.hypot(corner.x-current.x,corner.z-current.z)<4)continue;
-    const leg=safeRoute(current,[corner])?{waypoints:[corner],target:corner}:planSeaRoute(current,[corner]);
+    const leg=localSafe(current,[corner])?{waypoints:[corner],target:corner}:localRoute(current,[corner]);
     if(!leg)continue;   // head for the next corner instead
     waypoints.push(...leg.waypoints);current=leg.target;clearance=Math.min(clearance,leg.clearance??2.1);
   }
-  const last=planSeaRoute(current,candidates);
+  const last=localRoute(current,candidates);
   if(!last)return null;
   waypoints.push(...last.waypoints);clearance=Math.min(clearance,last.clearance??2.1);
-  return safeRoute(from,waypoints,clearance)?{waypoints,target:last.target,clearance}:null;
+  let a=from;
+  for(const b of waypoints){if(!localSafe(a,[b],clearance))return null;a=b;}
+  return {waypoints,target:last.target,clearance};
 }
 // A long trip that fails on the coarse course is not retried with the old whole-window search: across a whole
 // country that search takes seconds and finds nothing the coarse course could not.
 function planRoute(from,candidates){
   const long=planLongRoute(from,candidates);
-  return long===undefined?planSeaRoute(from,candidates):long;
+  return long===undefined?localRoute(from,candidates):long;   // localRoute: targets across the seam are taken at their near copy
 }
 function circum(from){
   const ring=[];

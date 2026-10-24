@@ -4,28 +4,32 @@ import { createTerrainMaterial } from './terrain-material.js';
 import { quality } from './quality.js';
 import * as THREE from 'three';
 import { fetchGrayPixels, fetchJson, markLoaded } from './data-loader.js';
-import { WORLD_UNITS_PER_KM, geoToWorld, worldToGeo, kmPerWorldUnitAt } from './geo.js';
+import { WORLD_MAX_X, WORLD_MIN_X, WORLD_UNITS_PER_KM, WORLD_WIDTH, geoToWorld, worldToGeo, kmPerWorldUnitAt } from './geo.js';
 import { boat, camera, reflectionExclusions, scene } from './core.js';
 import { REGIONS, COUNTRIES, COUNTRY_LABELS, countryByCode, exaggerationAt } from './regions.js';
 export { COUNTRY_LABELS };
 
 // ---------------------------------------------------------------------------
 // Land, streamed by region (see regions.js / Data/regions.json):
-// - every island is always present as a simplified outline (coast/base.json); the full outline of the chunks near the
-//   boat or jet replaces it in place, and goes back to the simplified one when they are far away again;
+// - an always-loaded outline layer (coast/outline.json) holds the larger islands, simplified to about 1.6 km; near the
+//   boat or jet each chunk's full-detail outlines (including the small islets) replace its outline islands, and the
+//   outline islands come back when it is far again. Chunks are cut at a 2° grid, so a continent streams in pieces;
+//   cut pieces carry `cut` (their straight edges are not coast);
 // - heights come from one coarse overview heightmap plus full-resolution tiles streamed the same way;
-// - relief: every land block has a coarse mesh from the outlines and the overview; the detailed mesh is built once the
-//   block is near and its full outlines and heightmap tiles have arrived, and dropped again when it is far.
-// Collision, navigation and maps always read `landIslands`, which holds whichever outline each island has now.
+// - relief: land blocks within COARSE_RADIUS get a coarse mesh from the outline layer and the overview; the detailed
+//   mesh is built once a block is near and its full outlines and heightmap tiles have arrived. Both are released again
+//   when far, so only land around the camera is ever meshed.
+// Collision, navigation and maps always read `landIslands`, the islands each chunk has now.
 // ---------------------------------------------------------------------------
 const { coast: COAST, dem: DEM } = REGIONS;
 const STREAM_RADIUS = 170;   // world units around the vehicle in which full-detail data is loaded…
 const UNLOAD_RADIUS = 230;   // …and beyond which it is released again
+const COARSE_RADIUS = 1500, COARSE_RELEASE = 1800;   // coarse relief around the camera
 const MAX_PARALLEL_LOADS = 4;
 
-const baseCoast = await fetchJson(COAST.base);
+const outlineCoast = await fetchJson(COAST.outline);
 
-function makeIsland(flat, scale, country, chunk) {
+function makeIsland(flat, scale, country, chunk, cut = false, shift = 0) {
   const count = flat.length / 2;
   const points = new Float64Array(flat.length);
   let lonUnits = 0, latUnits = 0;
@@ -34,6 +38,7 @@ function makeIsland(flat, scale, country, chunk) {
     lonUnits += flat[i * 2];
     latUnits += flat[i * 2 + 1];
     const world = geoToWorld({ latitude: latUnits / scale, longitude: lonUnits / scale });
+    world.x += shift;
     points[i * 2] = world.x;
     points[i * 2 + 1] = world.y;
     if (world.x < minX) minX = world.x;
@@ -46,32 +51,60 @@ function makeIsland(flat, scale, country, chunk) {
     twiceArea += points[j * 2] * points[i * 2 + 1] - points[i * 2] * points[j * 2 + 1];
   }
   const kmPerUnit = kmPerWorldUnitAt((minZ + maxZ) / 2);
-  return { country, chunk, points, count, minX, maxX, minZ, maxZ, areaKm2: Math.abs(twiceArea) / 2 * kmPerUnit * kmPerUnit };
+  return { country, chunk, cut, points, count, minX, maxX, minZ, maxZ, areaKm2: Math.abs(twiceArea) / 2 * kmPerUnit * kmPerUnit };
 }
+const makeIslands = (data, chunk) => {
+  const cut = new Set(data.cut ?? []);
+  return data.polys.map((flat, i) => makeIsland(flat, data.scale ?? COAST.scale, chunk.meta.country, chunk.meta.id, cut.has(i), chunk.shift));
+};
 
 const geoBoundsToWorld = ([lon0, lat0, lon1, lat1], pad = 0) => {
   const a = geoToWorld({ latitude: lat1, longitude: lon0 }), b = geoToWorld({ latitude: lat0, longitude: lon1 });
-  return { minX: a.x - pad, maxX: b.x + pad, minZ: a.y - pad, maxZ: b.y + pad };
+  return { minX: a.x - pad, maxX: a.x + (b.x - a.x + WORLD_WIDTH) % WORLD_WIDTH + pad, minZ: a.y - pad, maxZ: b.y + pad };
 };
+const shiftedBox = (box, dx) => ({ ...box, minX: box.minX + dx, maxX: box.maxX + dx });
+// Land (and heightmaps) within the ghost margin of the seam get a copy one world width over, so the far side is there
+// before the vehicle wraps round (see geo.js).
+const GHOST = REGIONS.world?.ghostUnits ?? 0;
+const ghostShifts = (box) => [box.minX < WORLD_MIN_X + GHOST ? WORLD_WIDTH : null, box.maxX > WORLD_MAX_X - GHOST ? -WORLD_WIDTH : null].filter((shift) => shift !== null);
 const boxDistance = (box, x, z) => Math.hypot(Math.max(box.minX - x, 0, x - box.maxX), Math.max(box.minZ - z, 0, z - box.maxZ));
+const boxesOverlap = (a, b) => a.minX <= b.maxX && a.maxX >= b.minX && a.minZ <= b.maxZ && a.maxZ >= b.minZ;
 
-// One slot per island: `landIslands[slot]` is its current outline (base or detail).
 export const landIslands = [];
-const slotBase = [];
-const chunks = new Map();   // id -> { meta, box, slots, state: 'base' | 'loading' | 'detail' }
+const chunks = new Map();   // id -> { meta, box, outline, current, state: 'outline' | 'loading' | 'detail' }
+const outlineById = new Map(outlineCoast.chunks.map((entry) => [entry.id, entry]));
 for (const meta of COAST.chunks) {
-  const polys = baseCoast.chunks.find((entry) => entry.id === meta.id)?.polys ?? [];
-  const chunk = { meta, box: geoBoundsToWorld(meta.bounds), slots: [], state: 'base' };
-  for (const flat of polys) {
-    const island = makeIsland(flat, baseCoast.scale, meta.country, meta.id);
-    island.slot = landIslands.length;
-    chunk.slots.push(island.slot);
-    slotBase.push(island);
-    landIslands.push(island);
+  const box = geoBoundsToWorld(meta.bounds);
+  for (const shift of [0, ...ghostShifts(box)]) {
+    const chunk = { meta, shift, box: shiftedBox(box, shift), state: 'outline' };
+    chunk.outline = makeIslands({ scale: outlineCoast.scale, polys: [], ...outlineById.get(meta.id) }, chunk);
+    chunk.current = chunk.outline;
+    landIslands.push(...chunk.outline);
+    chunks.set(shift ? `${meta.id}~${Math.sign(shift)}` : meta.id, chunk);
   }
-  chunks.set(meta.id, chunk);
 }
-// Bumped whenever an outline is swapped, so caches built from `landIslands` (e.g. the route planner) can tell.
+// chunks by 100-unit cells of their bounds, to find the ones under a relief block quickly
+const CHUNK_CELL = 100;
+const chunkCells = new Map();
+for (const chunk of chunks.values()) {
+  for (let cx = Math.floor(chunk.box.minX / CHUNK_CELL); cx <= Math.floor(chunk.box.maxX / CHUNK_CELL); cx++) {
+    for (let cz = Math.floor(chunk.box.minZ / CHUNK_CELL); cz <= Math.floor(chunk.box.maxZ / CHUNK_CELL); cz++) {
+      const key = `${cx},${cz}`;
+      if (!chunkCells.has(key)) chunkCells.set(key, []);
+      chunkCells.get(key).push(chunk);
+    }
+  }
+}
+function chunksInBox(box) {
+  const found = new Set();
+  for (let cx = Math.floor(box.minX / CHUNK_CELL); cx <= Math.floor(box.maxX / CHUNK_CELL); cx++) {
+    for (let cz = Math.floor(box.minZ / CHUNK_CELL); cz <= Math.floor(box.maxZ / CHUNK_CELL); cz++) {
+      for (const chunk of chunkCells.get(`${cx},${cz}`) ?? []) if (boxesOverlap(chunk.box, box)) found.add(chunk);
+    }
+  }
+  return [...found];
+}
+// Bumped whenever outlines are swapped, so caches built from `landIslands` (e.g. the route planner) can tell.
 export let landVersion = 0;
 
 // Coarse bucket index so a point-in-land test only looks at nearby outlines.
@@ -92,6 +125,28 @@ function indexIsland(island, add) {
   }
 }
 landIslands.forEach((island) => indexIsland(island, true));
+// islands overlapping a world box, from the given bucket index (the live one, or the outline layer's)
+function islandsInBox(buckets, box) {
+  const found = new Set();
+  for (let bx = Math.floor(box.minX / LAND_BUCKET_SIZE); bx <= Math.floor(box.maxX / LAND_BUCKET_SIZE); bx++) {
+    for (let bz = Math.floor(box.minZ / LAND_BUCKET_SIZE); bz <= Math.floor(box.maxZ / LAND_BUCKET_SIZE); bz++) {
+      for (const island of buckets.get(`${bx},${bz}`) ?? []) if (boxesOverlap(island, box)) found.add(island);
+    }
+  }
+  return [...found];
+}
+const outlineBuckets = new Map();
+for (const chunk of chunks.values()) {
+  for (const island of chunk.outline) {
+    for (let bx = Math.floor(island.minX / LAND_BUCKET_SIZE); bx <= Math.floor(island.maxX / LAND_BUCKET_SIZE); bx++) {
+      for (let bz = Math.floor(island.minZ / LAND_BUCKET_SIZE); bz <= Math.floor(island.maxZ / LAND_BUCKET_SIZE); bz++) {
+        const key = `${bx},${bz}`;
+        if (!outlineBuckets.has(key)) outlineBuckets.set(key, []);
+        outlineBuckets.get(key).push(island);
+      }
+    }
+  }
+}
 
 export function landIslandAt(x, z) {
   const bucket = landBuckets.get(`${Math.floor(x / LAND_BUCKET_SIZE)},${Math.floor(z / LAND_BUCKET_SIZE)}`);
@@ -141,7 +196,10 @@ const withBounds = (entry) => {
   return { ...entry, lonMin, latMin, lonMax, latMax, box: geoBoundsToWorld(entry.bounds), pixels: null, state: 'idle' };
 };
 const overviewDem = withBounds(DEM.overview);
-const demTiles = DEM.tiles.map(withBounds);
+const demTiles = DEM.tiles.flatMap((entry) => {
+  const tile = withBounds(entry);
+  return [tile, ...ghostShifts(tile.box).map((shift) => ({ ...withBounds(entry), box: shiftedBox(tile.box, shift) }))];
+});
 // 1° buckets of tiles, for the per-sample lookup
 const tileBuckets = new Map();
 for (const tile of demTiles) {
@@ -218,15 +276,16 @@ function pumpLoads() {
   settleWaiters();
 }
 
-function swapChunk(chunk, polys) {
-  for (let i = 0; i < chunk.slots.length; i++) {
-    const slot = chunk.slots[i];
-    const next = polys ? makeIsland(polys[i], COAST.scale, chunk.meta.country, chunk.meta.id) : slotBase[slot];
-    next.slot = slot;
-    indexIsland(landIslands[slot], false);
-    landIslands[slot] = next;
-    indexIsland(next, true);
-  }
+// Replace a chunk's islands in `landIslands` in place (other modules hold that array).
+function setChunkIslands(chunk, islands) {
+  const leaving = new Set(chunk.current);
+  for (const island of chunk.current) indexIsland(island, false);
+  let kept = 0;
+  for (let i = 0; i < landIslands.length; i++) if (!leaving.has(landIslands[i])) landIslands[kept++] = landIslands[i];
+  landIslands.length = kept;
+  landIslands.push(...islands);
+  for (const island of islands) indexIsland(island, true);
+  chunk.current = islands;
   landVersion++;
   emitLandChange('coast', chunk.box);
 }
@@ -237,11 +296,10 @@ function loadChunk(chunk) {
     try {
       const data = await fetchJson(chunk.meta.file);
       if (chunk.state !== 'loading') return;   // released while it was downloading
-      if (data.polys.length !== chunk.slots.length) throw new Error(`海岸線區塊 ${chunk.meta.id} 與總覽不一致`);
       chunk.state = 'detail';
-      swapChunk(chunk, data.polys);
+      setChunkIslands(chunk, makeIslands(data, chunk));
     } catch (error) {
-      chunk.state = 'base';   // keep the simplified outline; the next pass tries again
+      chunk.state = 'outline';   // keep the outline islands; the next pass tries again
       throw error;
     }
   });
@@ -249,8 +307,8 @@ function loadChunk(chunk) {
 
 function unloadChunk(chunk) {
   const wasDetail = chunk.state === 'detail';
-  chunk.state = 'base';
-  if (wasDetail) swapChunk(chunk, null);
+  chunk.state = 'outline';
+  if (wasDetail) setChunkIslands(chunk, chunk.outline);
 }
 
 function loadTile(tile) {
@@ -283,8 +341,8 @@ export function updateLandStreaming(x, z, force = false) {
   const wanted = [];
   for (const chunk of chunks.values()) {
     const distance = boxDistance(chunk.box, x, z);
-    if (distance < STREAM_RADIUS && chunk.state === 'base') wanted.push({ distance, load: () => loadChunk(chunk) });
-    else if (distance > UNLOAD_RADIUS && chunk.state !== 'base') unloadChunk(chunk);
+    if (distance < STREAM_RADIUS && chunk.state === 'outline') wanted.push({ distance, load: () => loadChunk(chunk) });
+    else if (distance > UNLOAD_RADIUS && chunk.state !== 'outline') unloadChunk(chunk);
   }
   for (const tile of demTiles) {
     const distance = boxDistance(tile.box, x, z);
@@ -484,133 +542,123 @@ function buildSmallIslandMesh(islands, maxEdge) {
   const mesh = new THREE.Mesh(geometry, reliefMaterial); mesh.receiveShadow = true; return mesh;
 }
 
-// Relief blocks, assigned from the simplified outlines (padded by the simplification tolerance, so the full outline
-// still falls inside its blocks). A block knows which coast chunks and heightmap tiles its detailed mesh needs.
-const reliefBlocks = [];
-{
-  const blocks = new Map();
-  const pad = COAST.tolerance;
-  for (const island of slotBase) {
-    const step = countryByCode(island.country)?.reliefStep ?? .2;
-    const span = step * RELIEF_CELLS;
-    const blockOf = (bx, bz) => {
-      const key = `${island.country}:${bx},${bz}`;
-      if (!blocks.has(key)) blocks.set(key, { bx, bz, step, span, grid: [], small: [], chunks: new Set() });
-      return blocks.get(key);
-    };
-    // Guishan Island keeps its geographic coast for collisions; its relief comes from the dedicated coastal model.
-    if (hasCustomCoastalTerrain(island)) continue;
-    if (island.areaKm2 >= 6 * (step * 4) ** 2) {
-      for (let bx = Math.floor((island.minX - pad) / span); bx <= Math.floor((island.maxX + pad) / span); bx++) {
-        for (let bz = Math.floor((island.minZ - pad) / span); bz <= Math.floor((island.maxZ + pad) / span); bz++) {
-          const block = blockOf(bx, bz);
-          block.grid.push(island.slot);
-          block.chunks.add(island.chunk);
-        }
-      }
-    } else {
-      const block = blockOf(Math.floor((island.minX + island.maxX) / 2 / span), Math.floor((island.minZ + island.maxZ) / 2 / span));
-      block.small.push(island.slot);
-      block.chunks.add(island.chunk);
-    }
-  }
-  for (const block of blocks.values()) {
-    const box = { minX: block.bx * block.span, maxX: (block.bx + 1) * block.span, minZ: block.bz * block.span, maxZ: (block.bz + 1) * block.span };
-    block.box = box;
-    block.x = (box.minX + box.maxX) / 2;
-    block.z = (box.minZ + box.maxZ) / 2;
-    block.switchDistance = block.span * 3.5;
-    block.chunks = [...block.chunks].map((id) => chunks.get(id));
-    block.tiles = demTiles.filter((tile) => tile.box.minX < box.maxX + block.step && tile.box.maxX > box.minX - block.step && tile.box.minZ < box.maxZ + block.step && tile.box.maxZ > box.minZ - block.step);
-    block.coarse = [];
-    block.fine = null;
-    reliefBlocks.push(block);
-  }
+// Relief blocks: square cells of relief step × RELIEF_CELLS per country, created around the camera and released when far.
+// What a block shows is looked up when it is built: the outline layer for its coarse mesh, the live islands for the
+// detailed one. Islets too small for a grid cell are drawn by the block holding their centre; pieces cut at the chunk
+// grid are always drawn on the grid, so a continent's pieces join up.
+const reliefBlocks = new Map();
+const stepOf = (country) => countryByCode(country)?.reliefStep ?? .2;
+const isSmall = (island, step) => !island.cut && island.areaKm2 < 6 * (step * 4) ** 2;
+function blockContents(block, buckets) {
+  const islands = islandsInBox(buckets, block.box).filter((island) => island.country === block.country && !hasCustomCoastalTerrain(island));
+  const inside = (island) => { const x = (island.minX + island.maxX) / 2, z = (island.minZ + island.maxZ) / 2; return x >= block.box.minX && x < block.box.maxX && z >= block.box.minZ && z < block.box.maxZ; };
+  return { grid: islands.filter((island) => !isSmall(island, block.step)), small: islands.filter((island) => isSmall(island, block.step) && inside(island)) };
+}
+function ensureBlock(country, bx, bz) {
+  const key = `${country}|${bx},${bz}`;
+  if (reliefBlocks.has(key)) return;
+  const step = stepOf(country), span = step * RELIEF_CELLS;
+  const box = { minX: bx * span, maxX: (bx + 1) * span, minZ: bz * span, maxZ: (bz + 1) * span };
+  const padded = { minX: box.minX - step, maxX: box.maxX + step, minZ: box.minZ - step, maxZ: box.maxZ + step };
+  reliefBlocks.set(key, { key, country, bx, bz, step, span, box, x: (box.minX + box.maxX) / 2, z: (box.minZ + box.maxZ) / 2, switchDistance: span * 3.5,
+    chunks: chunksInBox(padded).filter((chunk) => chunk.meta.country === country),
+    tiles: demTiles.filter((tile) => boxesOverlap(tile.box, padded)), coarse: null, fine: null });
 }
 const isDetailReady = (block) => block.chunks.every((chunk) => chunk.state === 'detail') && block.tiles.every((tile) => tile.state === 'loaded');
-const disposeMeshes = (meshes) => { for (const mesh of meshes) { landGroup.remove(mesh); mesh.geometry.dispose(); } };
+const disposeMeshes = (meshes) => { for (const mesh of meshes ?? []) { landGroup.remove(mesh); mesh.geometry.dispose(); } };
 
 function buildFine(block) {
-  const islands = (slots) => slots.map((slot) => landIslands[slot]);
+  const { grid, small } = blockContents(block, landBuckets);
   const meshes = [];
-  const grid = block.grid.length && buildReliefMesh(block, block.step, RELIEF_CELLS, islands(block.grid), { seaFloor: SEA_FLOOR_HEIGHT, strokeWidth: .8, metersAt: elevationMetersAt });
-  if (grid) meshes.push(grid);
-  const small = block.small.length && buildSmallIslandMesh(islands(block.small), .14);
-  if (small) meshes.push(small);
+  const gridMesh = grid.length && buildReliefMesh(block, block.step, RELIEF_CELLS, grid, { seaFloor: SEA_FLOOR_HEIGHT, strokeWidth: .8, metersAt: elevationMetersAt });
+  if (gridMesh) meshes.push(gridMesh);
+  const smallMesh = small.length && buildSmallIslandMesh(small, .14);
+  if (smallMesh) meshes.push(smallMesh);
   return meshes;
 }
 
 function buildCoarse(block) {
+  const { grid, small } = blockContents(block, outlineBuckets);
   const meshes = [];
-  const grid = block.grid.length && buildReliefMesh(block, block.step * COARSE_FACTOR, RELIEF_CELLS / COARSE_FACTOR, block.grid.map((slot) => slotBase[slot]),
+  const gridMesh = grid.length && buildReliefMesh(block, block.step * COARSE_FACTOR, RELIEF_CELLS / COARSE_FACTOR, grid,
     { seaFloor: COARSE_SEA_FLOOR_HEIGHT, strokeWidth: 2, metersAt: overviewMeters });
-  if (grid) meshes.push(grid);
-  const small = block.small.length && buildSmallIslandMesh(block.small.map((slot) => slotBase[slot]), block.step * COARSE_FACTOR);
-  if (small) meshes.push(small);
+  if (gridMesh) meshes.push(gridMesh);
+  const smallMesh = small.length && buildSmallIslandMesh(small, block.step * COARSE_FACTOR);
+  if (smallMesh) meshes.push(smallMesh);
   return meshes;
 }
 
-// Coarse meshes for all land, nearest first; awaited once at start-up.
-export async function buildCoarseRelief() {
-  const pending = [...reliefBlocks].sort((a, b) => Math.hypot(a.x - boat.position.x, a.z - boat.position.z) - Math.hypot(b.x - boat.position.x, b.z - boat.position.z));
-  let frameStart = performance.now();
-  for (const block of pending) {
-    block.coarse = buildCoarse(block);
-    for (const mesh of block.coarse) { mesh.visible = !block.fine; landGroup.add(mesh); }
-    if (performance.now() - frameStart > 9) {
-      await nextFrame();
-      frameStart = performance.now();
+// Create the blocks over every chunk within COARSE_RADIUS of the camera, and release blocks beyond COARSE_RELEASE.
+let blocksX = Infinity, blocksZ = Infinity;
+function refreshBlocks(x, z) {
+  if (Math.hypot(x - blocksX, z - blocksZ) < 40) return;
+  blocksX = x; blocksZ = z;
+  for (const chunk of chunks.values()) {
+    if (boxDistance(chunk.box, x, z) > COARSE_RADIUS) continue;
+    const span = stepOf(chunk.meta.country) * RELIEF_CELLS;
+    for (let bx = Math.floor(chunk.box.minX / span); bx <= Math.floor(chunk.box.maxX / span); bx++) {
+      for (let bz = Math.floor(chunk.box.minZ / span); bz <= Math.floor(chunk.box.maxZ / span); bz++) ensureBlock(chunk.meta.country, bx, bz);
     }
+  }
+  for (const [key, block] of reliefBlocks) {
+    if (boxDistance(block.box, x, z) <= COARSE_RELEASE) continue;
+    disposeMeshes(block.coarse); disposeMeshes(block.fine);
+    reliefBlocks.delete(key);
   }
 }
 
-// Detailed meshes: built nearest-first within a frame budget so streaming never stalls the game for long.
-const fineQueue = new Set();
-let fineBuilding = false;
-async function buildQueuedFine() {
-  fineBuilding = true;
+// Meshes are built nearest-first within a frame budget, so streaming never stalls the game for long.
+let building = false;
+async function buildQueuedRelief() {
+  building = true;
   let frameStart = performance.now();
-  while (fineQueue.size) {
-    let next = null, nearest = Infinity;
-    for (const block of fineQueue) {
+  for (;;) {
+    let next = null, nearest = Infinity, fine = false;
+    for (const block of reliefBlocks.values()) {
       const distance = Math.hypot(block.x - camera.position.x, block.z - camera.position.z);
-      if (distance < nearest) { nearest = distance; next = block; }
+      const wantsFine = !block.fine && distance < block.switchDistance * quality.detail && isDetailReady(block);
+      if ((wantsFine || !block.coarse) && distance < nearest) { nearest = distance; next = block; fine = wantsFine; }
     }
-    fineQueue.delete(next);
-    if (!next.fine && isDetailReady(next)) {
-      next.fine = buildFine(next);
-      for (const mesh of next.fine) { mesh.visible = false; landGroup.add(mesh); }
-    }
+    if (!next) break;
+    if (fine) { next.fine = buildFine(next); for (const mesh of next.fine) { mesh.visible = false; landGroup.add(mesh); } }
+    else { next.coarse = buildCoarse(next); for (const mesh of next.coarse) { mesh.visible = !next.fine; landGroup.add(mesh); } }
     if (performance.now() - frameStart > 6) {
       await nextFrame();
       frameStart = performance.now();
     }
   }
-  fineBuilding = false;
+  building = false;
+}
+
+// Coarse meshes around the start position; awaited once at start-up.
+export async function buildCoarseRelief() {
+  refreshBlocks(camera.position.x, camera.position.z);
+  if (!building) await buildQueuedRelief();
 }
 
 // Releasing detail data drops the detailed meshes built from it.
 onLandChange(({ box }) => {
-  for (const block of reliefBlocks) {
-    if (!block.fine || isDetailReady(block)) continue;
-    if (block.box.maxX < box.minX || block.box.minX > box.maxX || block.box.maxZ < box.minZ || block.box.minZ > box.maxZ) continue;
+  for (const block of reliefBlocks.values()) {
+    if (!block.fine || isDetailReady(block) || !boxesOverlap(block.box, box)) continue;
     disposeMeshes(block.fine);
     block.fine = null;
   }
 });
 
-// Show each block's detailed or coarse mesh by its distance to the camera; queue detailed meshes that are due.
+// Show each block's detailed or coarse mesh by its distance to the camera; build what is due.
 export function updateLandDetail() {
-  for (const block of reliefBlocks) {
+  refreshBlocks(camera.position.x, camera.position.z);
+  let due = false;
+  for (const block of reliefBlocks.values()) {
     const distance = Math.hypot(block.x - camera.position.x, camera.position.y, block.z - camera.position.z);
     const limit = block.switchDistance * quality.detail;
     const near = distance < limit;
-    if (near && !block.fine && !fineQueue.has(block) && isDetailReady(block)) fineQueue.add(block);
+    if ((near && !block.fine && isDetailReady(block)) || !block.coarse) due = true;
     // drop detailed meshes only when far sideways, so zooming the chart out and in does not rebuild them
     else if (block.fine && Math.hypot(block.x - camera.position.x, block.z - camera.position.z) > limit * 2) { disposeMeshes(block.fine); block.fine = null; }
     const showFine = near && !!block.fine;
     if (block.fine) for (const mesh of block.fine) mesh.visible = showFine;
-    for (const mesh of block.coarse) mesh.visible = !showFine;
+    for (const mesh of block.coarse ?? []) mesh.visible = !showFine;
   }
-  if (fineQueue.size && !fineBuilding) buildQueuedFine();
+  if (due && !building) buildQueuedRelief();
 }

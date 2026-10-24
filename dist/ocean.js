@@ -25,7 +25,7 @@ import { createAmbience } from './ambience.js';
 import { initSettings } from './settings.js';
 import { initJourney, journeyOpen, logEvent, recordSpecialStamp, recordWhale, setJourneyOpen, setStampTargets, trackJourney } from './journey.js';
 import { JAPAN_BARRIER_KM, PREVIEW_ALL_COUNTRIES, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
-import { ELUANBI_OFFSHORE_START, geoToWorld, kmPerWorldUnitAt, worldToGeo } from './geo.js';
+import { ELUANBI_OFFSHORE_START, geoToWorld, kmPerWorldUnitAt, worldToGeo, wrapWorldX } from './geo.js';
 import { placeCountries } from './places.js';
 import { COUNTRY_LABELS, buildCoarseRelief, distanceToLand, isOnLand, landIslands, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
 import { revealGame, startingHeading, BOAT_WATERLINE_Y, WORLD_BOUNDS, boat, boatLights, camera, compassDial, currentVehicleType, cycleTimeMode, cycleWeatherMode, fpsReadout, glowTexture, headingReadout, landDistanceReadout, lighthouseBeacons, loading, positionReadout, reflectionExclusions, renderer, scene, sky, directional, sun, setWeatherAlert, speedReadout, startingWorldPosition, timeOfDay, updateDayCycle, updateWeather, water, weatherBlend, windDirection, windReadout } from './core.js';
@@ -36,7 +36,7 @@ import { createSkyFx } from './sky-fx.js';
 import { createSkyExtras } from './sky-extras.js';
 import { createLightningFx, unlockWeatherSound } from './weather-fx.js';
 import { addTaiwanLandmarks, regroundTaiwanLandmarks, setTaipei101Night } from './taiwan-landmarks.js';
-import { addLandmarks, regroundLandmarks, landmarkEntries, landmarkInstances, updateLandmarkVisibility, updateLandmarkAnimations } from './landmarks.js';
+import { addLandmarks, refreshStampStops, regroundLandmarks, landmarkEntries, landmarkInstances, updateLandmarkVisibility, updateLandmarkAnimations } from './landmarks.js';
 import { autopilotStep, markNavObstacle, nearestCoastPoint, runNavigation, setNavStatus, stopAutopilot } from './nav.js';
 import { cameraAnchor, keys, state, topDownView } from './state.js';
 import { setWorldMapOpen, updateExploration, updateWorldMap, worldMapOpen } from './world-map.js';
@@ -75,7 +75,8 @@ function addCityLights() {
 let regroundTimer = 0;
 const regroundBoxes = [];
 onLandChange(({ kind, box }) => {
-  if (kind !== 'dem' || !landPlaced) return;
+  if (!landPlaced) return;
+  if (kind === 'coast') { refreshStampStops(box); return; }
   regroundBoxes.push(box);
   if (regroundTimer) return;
   regroundTimer = setTimeout(() => {
@@ -99,6 +100,17 @@ async function addLand() {
 }
 
 
+
+// Past the seam meridian the boat or jet comes back in at the other end of the world, one world width away; the
+// camera, its look-at points and any autopilot course move with it, so nothing on screen jumps.
+function wrapVehicle() {
+  const dx = wrapWorldX(boat.position.x) - boat.position.x;
+  if (!dx) return;
+  boat.position.x += dx;
+  if (currentVehicleType() === 'fighter') aircraft.x += dx;
+  camera.position.x += dx; smoothLook.x += dx; controls.target.x += dx;
+  for (const point of state.autopilot?.waypoints ?? []) point.x += dx;
+}
 
 function seaHeight(x, z, time) {
   return (
@@ -524,10 +536,9 @@ function animate() {
     if (state.autopilot) stopAutopilot(lockMessage(nearestLand.country), 'error');
     if (performance.now() - lastBarrierToast > 4000) { lastBarrierToast = performance.now(); showEventToast(lockMessage(nearestLand.country)); }
   }
-  const clampedX = THREE.MathUtils.clamp(boat.position.x, WORLD_BOUNDS.minX, WORLD_BOUNDS.maxX);
+  // east-west the world wraps (wrapVehicle); north and south it ends
   const clampedZ = THREE.MathUtils.clamp(boat.position.z, WORLD_BOUNDS.minZ, WORLD_BOUNDS.maxZ);
-  if (clampedX !== boat.position.x || clampedZ !== boat.position.z) {
-    boat.position.x = clampedX;
+  if (clampedZ !== boat.position.z) {
     boat.position.z = clampedZ;
     state.velocity *= -.22;
     state.collisionPulse = 1;
@@ -536,6 +547,7 @@ function animate() {
     shoreX=boat.position.x;shoreZ=boat.position.z;nearestLand=distanceToLand(shoreX,shoreZ);
   }
   }
+  wrapVehicle();
   if(currentVehicleType()!=='fighter'){
   trackAchievements({ delta, x: boat.position.x, z: boat.position.z, nearestLand, night: timeOfDay === 'night', speed: Math.abs(state.velocity), landmarks: landmarkEntries });
   trackJourney({ delta, x: boat.position.x, z: boat.position.z, kmPerUnit: kmPerWorldUnitAt(boat.position.z), speed: Math.abs(state.velocity), seaName: () => seaNameAt(boat.position.x, boat.position.z), nearestLand, stampTargets: landmarkEntries });
@@ -679,14 +691,14 @@ let seaVoyage={x:startingWorldPosition.x,z:startingWorldPosition.y,heading:start
 try {
   const saved = JSON.parse(localStorage.getItem(VOYAGE_KEY) ?? 'null');
   if (saved && [saved.x, saved.z, saved.heading].every(Number.isFinite) && !isOnLand(saved.x, saved.z)) {
-    seaVoyage={x:THREE.MathUtils.clamp(saved.x,WORLD_BOUNDS.minX,WORLD_BOUNDS.maxX),z:THREE.MathUtils.clamp(saved.z,WORLD_BOUNDS.minZ,WORLD_BOUNDS.maxZ),heading:saved.heading};
+    seaVoyage={x:wrapWorldX(saved.x),z:THREE.MathUtils.clamp(saved.z,WORLD_BOUNDS.minZ,WORLD_BOUNDS.maxZ),heading:saved.heading};
   }
 } catch { /* no saved voyage */ }
 let savedAircraft=null;
 try{
   const saved=JSON.parse(localStorage.getItem(AIRCRAFT_KEY)??'null');
   if(saved&&[saved.x,saved.y,saved.z,saved.heading].every(Number.isFinite)&&['hover','flying','grounded','takingOff','landing'].includes(saved.mode))
-    savedAircraft=createFlightState({x:THREE.MathUtils.clamp(saved.x,WORLD_BOUNDS.minX,WORLD_BOUNDS.maxX),y:THREE.MathUtils.clamp(saved.y,0,FLIGHT_MAX_HEIGHT),z:THREE.MathUtils.clamp(saved.z,WORLD_BOUNDS.minZ,WORLD_BOUNDS.maxZ),heading:saved.heading,mode:['takingOff','landing'].includes(saved.mode)?'hover':saved.mode,speed:Number.isFinite(saved.speed)?saved.speed:0});
+    savedAircraft=createFlightState({x:wrapWorldX(saved.x),y:THREE.MathUtils.clamp(saved.y,0,FLIGHT_MAX_HEIGHT),z:THREE.MathUtils.clamp(saved.z,WORLD_BOUNDS.minZ,WORLD_BOUNDS.maxZ),heading:saved.heading,mode:['takingOff','landing'].includes(saved.mode)?'hover':saved.mode,speed:Number.isFinite(saved.speed)?saved.speed:0});
 }catch{/* first flight */}
 let aircraftInitialized=false;
 function saveAircraft(){try{localStorage.setItem(AIRCRAFT_KEY,JSON.stringify({x:aircraft.x,y:aircraft.y,z:aircraft.z,heading:aircraft.heading,mode:aircraft.mode,speed:aircraft.speed}));}catch{/* private mode */}}

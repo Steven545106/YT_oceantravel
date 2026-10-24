@@ -4,6 +4,7 @@ import {isCountryUnlocked} from './achievements.js';
 import {hasStamp} from './journey.js';
 import { geoToWorld, worldToGeo, kmPerWorldUnitAt } from './geo.js';
 import { WORLD_BOUNDS, boat, currentVehicleType } from './core.js';
+import { REGIONS } from './regions.js';
 import { landIslands } from './land.js';
 import { seaMainAnchors } from './seas.js';
 import { PLACE_TYPE_WEIGHT, placeCountries } from './places.js';
@@ -16,7 +17,18 @@ import { runNavigation } from './nav.js';
 const EXPLORE_REVEAL_RADIUS = 16;     // world units (~44 km) revealed around the boat
 const EXPLORE_STORAGE_KEY = 'relax-explored-v1';
 const MAP_PIXELS_PER_UNIT = 2;
-const mapUnitsWide = WORLD_BOUNDS.maxX - WORLD_BOUNDS.minX, mapUnitsHigh = WORLD_BOUNDS.maxZ - WORLD_BOUNDS.minZ;
+// The chart covers the land in the region registry plus a margin, not the whole wrapping world.
+const MAP_BOUNDS = (() => {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const { bounds: [lon0, lat0, lon1, lat1] } of REGIONS.coast.chunks) {
+    const a = geoToWorld({ latitude: lat1, longitude: lon0 }), b = geoToWorld({ latitude: lat0, longitude: lon1 });
+    minX = Math.min(minX, a.x); maxX = Math.max(maxX, b.x); minZ = Math.min(minZ, a.y); maxZ = Math.max(maxZ, b.y);
+  }
+  return { minX: Math.floor(minX - 60), maxX: Math.ceil(maxX + 60), minZ: Math.floor(Math.max(WORLD_BOUNDS.minZ, minZ - 60)), maxZ: Math.ceil(Math.min(WORLD_BOUNDS.maxZ, maxZ + 60)) };
+})();
+const mapUnitsWide = MAP_BOUNDS.maxX - MAP_BOUNDS.minX, mapUnitsHigh = MAP_BOUNDS.maxZ - MAP_BOUNDS.minZ;
+// Saved exploration remembers where its picture starts; older saves had none and always ended at x = 900, z = -760.
+const EXPLORE_ORIGIN_KEY = 'relax-explored-origin-v1';
 const exploreCanvas = document.createElement('canvas');
 exploreCanvas.width = Math.ceil(mapUnitsWide);
 exploreCanvas.height = Math.ceil(mapUnitsHigh);
@@ -37,7 +49,10 @@ try {
       current.getContext('2d').drawImage(exploreCanvas, 0, 0);
       exploreContext.globalCompositeOperation = 'source-over';
       exploreContext.clearRect(0, 0, exploreCanvas.width, exploreCanvas.height);
-      exploreContext.drawImage(image, 0, 0);
+      let origin = null;
+      try { origin = JSON.parse(localStorage.getItem(EXPLORE_ORIGIN_KEY)); } catch { /* ignore */ }
+      origin ??= { minX: 900 - image.width, minZ: -760 };
+      exploreContext.drawImage(image, origin.minX - MAP_BOUNDS.minX, origin.minZ - MAP_BOUNDS.minZ);
       exploreContext.globalCompositeOperation = 'destination-in';
       exploreContext.drawImage(current, 0, 0);
       // the map may have grown since it was saved (new regions): fill the uncovered part with the unexplored grey
@@ -51,7 +66,7 @@ try {
 } catch { /* storage unavailable: exploration just won't persist */ }
 
 function revealAround(x, z) {
-  const px = x - WORLD_BOUNDS.minX, pz = z - WORLD_BOUNDS.minZ;
+  const px = x - MAP_BOUNDS.minX, pz = z - MAP_BOUNDS.minZ;
   const gradient = exploreContext.createRadialGradient(px, pz, 0, px, pz, EXPLORE_REVEAL_RADIUS);
   gradient.addColorStop(0, 'rgba(0,0,0,1)');
   gradient.addColorStop(.75, 'rgba(0,0,0,1)');
@@ -73,7 +88,10 @@ export function updateExploration() {
 setInterval(() => {
   if (!exploreDirty) return;
   exploreDirty = false;
-  try { localStorage.setItem(EXPLORE_STORAGE_KEY, exploreCanvas.toDataURL('image/png')); } catch { /* ignore */ }
+  try {
+    localStorage.setItem(EXPLORE_STORAGE_KEY, exploreCanvas.toDataURL('image/png'));
+    localStorage.setItem(EXPLORE_ORIGIN_KEY, JSON.stringify({ minX: MAP_BOUNDS.minX, minZ: MAP_BOUNDS.minZ }));
+  } catch { /* ignore */ }
 }, 8000);
 
 const worldMapOverlay = document.querySelector('#world-map');
@@ -95,7 +113,7 @@ function buildWorldMapBase() {
   const context = mapColorCanvas.getContext('2d', { willReadFrequently: true });
   context.fillStyle = '#2f78b8';
   context.fillRect(0, 0, mapColorCanvas.width, mapColorCanvas.height);
-  context.setTransform(MAP_PIXELS_PER_UNIT, 0, 0, MAP_PIXELS_PER_UNIT, -WORLD_BOUNDS.minX * MAP_PIXELS_PER_UNIT, -WORLD_BOUNDS.minZ * MAP_PIXELS_PER_UNIT);
+  context.setTransform(MAP_PIXELS_PER_UNIT, 0, 0, MAP_PIXELS_PER_UNIT, -MAP_BOUNDS.minX * MAP_PIXELS_PER_UNIT, -MAP_BOUNDS.minZ * MAP_PIXELS_PER_UNIT);
   context.fillStyle = '#5aa65c';
   context.strokeStyle = '#2f6b3a';
   context.lineWidth = .35;
@@ -115,7 +133,7 @@ function buildWorldMapBase() {
   mapShapeCanvas.width = mapColorCanvas.width;
   mapShapeCanvas.height = mapColorCanvas.height;
   const shape = mapShapeCanvas.getContext('2d');
-  shape.setTransform(MAP_PIXELS_PER_UNIT, 0, 0, MAP_PIXELS_PER_UNIT, -WORLD_BOUNDS.minX * MAP_PIXELS_PER_UNIT, -WORLD_BOUNDS.minZ * MAP_PIXELS_PER_UNIT);
+  shape.setTransform(MAP_PIXELS_PER_UNIT, 0, 0, MAP_PIXELS_PER_UNIT, -MAP_BOUNDS.minX * MAP_PIXELS_PER_UNIT, -MAP_BOUNDS.minZ * MAP_PIXELS_PER_UNIT);
   shape.fillStyle = 'rgba(235,240,244,.3)';
   shape.strokeStyle = 'rgba(255,255,255,.85)';
   shape.lineWidth = .3;
@@ -152,23 +170,26 @@ function drawWorldMap() {
   context.drawImage(exploreCanvas, 0, 0, width, height);
   context.drawImage(mapShapeCanvas, 0, 0);
 
-  const toX = (x) => (x - WORLD_BOUNDS.minX) * MAP_PIXELS_PER_UNIT, toY = (z) => (z - WORLD_BOUNDS.minZ) * MAP_PIXELS_PER_UNIT;
+  const toX = (x) => (x - MAP_BOUNDS.minX) * MAP_PIXELS_PER_UNIT, toY = (z) => (z - MAP_BOUNDS.minZ) * MAP_PIXELS_PER_UNIT;
   context.lineWidth = 1.2;
   context.strokeStyle = 'rgba(255,255,255,.22)';
   context.fillStyle = 'rgba(255,255,255,.7)';
   context.font = '600 22px sans-serif';
   context.textAlign = 'left';
-  for (let lon = 120; lon <= 155; lon += 5) {
-    const x = toX(geoToWorld({ latitude: 30, longitude: lon }).x);
-    if (x < 0 || x > width) continue;
+  // every 5° of longitude and latitude across the chart
+  const west = worldToGeo(MAP_BOUNDS.minX, 0).longitude, north = worldToGeo(0, MAP_BOUNDS.minZ).latitude, south = worldToGeo(0, MAP_BOUNDS.maxZ).latitude;
+  for (let step = Math.ceil(west / 5) * 5 - west, lon = west + step; toX(geoToWorld({ latitude: 0, longitude: lon }).x) <= width && step < 360; step += 5, lon += 5) {
+    const x = toX(geoToWorld({ latitude: 0, longitude: lon }).x);
+    if (x < 0) continue;
+    const shown = ((Math.round(lon) + 540) % 360) - 180;
     context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
-    context.fillText(`${lon}°E`, x + 6, height - 10);
+    context.fillText(shown === 180 || shown === -180 ? '180°' : shown < 0 ? `${-shown}°W` : `${shown}°E`, x + 6, height - 10);
   }
-  for (let lat = 20; lat <= 45; lat += 5) {
+  for (let lat = Math.ceil(south / 5) * 5; lat <= north; lat += 5) {
     const y = toY(geoToWorld({ latitude: lat, longitude: 121 }).y);
     if (y < 0 || y > height) continue;
     context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
-    context.fillText(`${lat}°N`, 8, y - 6);
+    context.fillText(lat < 0 ? `${-lat}°S` : lat === 0 ? '0°' : `${lat}°N`, 8, y - 6);
   }
   // Sea names, faint, so the chart reads as a map even where nothing is revealed yet.
   context.textAlign = 'center';
@@ -257,7 +278,7 @@ function zoomMapAt(factor, clientX, clientY) {
 function mapPointToWorld(clientX, clientY) {
   const box = worldMapView.getBoundingClientRect();
   const bitmapX = (clientX - box.left - mapView.tx) / mapView.scale, bitmapY = (clientY - box.top - mapView.ty) / mapView.scale;
-  return { x: bitmapX / MAP_PIXELS_PER_UNIT + WORLD_BOUNDS.minX, z: bitmapY / MAP_PIXELS_PER_UNIT + WORLD_BOUNDS.minZ };
+  return { x: bitmapX / MAP_PIXELS_PER_UNIT + MAP_BOUNDS.minX, z: bitmapY / MAP_PIXELS_PER_UNIT + MAP_BOUNDS.minZ };
 }
 const MAP_CLICK_TYPES = new Set(['ADM1', 'ADM2', 'PPLC', 'PPLA', 'PPLA2', 'ISL', 'CAPE', 'LTHSE', 'HBR', 'PRT']);
 let mapClickPlaces = null;

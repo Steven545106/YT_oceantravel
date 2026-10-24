@@ -102,12 +102,24 @@ export function addLandmarks() {
     addMapLabel({text:landmarkDisplayName(item.entry),x:position.x,z:position.z,kind:'landmark',priority:45,maxHeight:item.entry.labelHeight??420});
     addLandmarkDetail(item.group,item.model,{heightAt:terrainHeightAt,sea:item.sea,natural:['peak','yushan','fuji','seongsan','hallasan','seoraksan','jirisan','lake','gorge','queenhead','alishan','tree','banaueTerraces','pagsanjanFalls','taal','dokdo','guishanIsland','vaseRock','twinHearts'].includes(item.entry.type)});
   }
+  for(const target of landmarkEntries)setStampStops(target,coastQuery);
+}
+function setStampStops(target,coastQuery){
+  const x=target.displayX??target.x,z=target.displayZ??target.z;
+  target.stampZones=seaCandidates(x,z,{coast:coastQuery,bounds:WORLD_BOUNDS,kmPerWorldUnitAt,preserveSeaPoint:false}).candidates
+    .filter(p=>!sceneryObstacles.some(o=>obstacleContains(o,p.x,p.z)))
+    .map(p=>({...p,reach:2/kmPerWorldUnitAt(p.z)}));
+  if(target.displayZone)target.stampZones.push(target.displayZone);
+}
+// Far sights get their offshore stops from the outline layer at start-up; once the full coast round them streams in
+// (`box`), they are worked out again from it.
+const STOP_REACH=40;
+export function refreshStampStops(box){
   for(const target of landmarkEntries){
     const x=target.displayX??target.x,z=target.displayZ??target.z;
-    target.stampZones=seaCandidates(x,z,{coast:coastQuery,bounds:WORLD_BOUNDS,kmPerWorldUnitAt,preserveSeaPoint:false}).candidates
-      .filter(p=>!sceneryObstacles.some(o=>obstacleContains(o,p.x,p.z)))
-      .map(p=>({...p,reach:2/kmPerWorldUnitAt(p.z)}));
-    if(target.displayZone)target.stampZones.push(target.displayZone);
+    if(x<box.minX-STOP_REACH||x>box.maxX+STOP_REACH||z<box.minZ-STOP_REACH||z>box.maxZ+STOP_REACH)continue;
+    const near=landIslands.filter(i=>i.maxX>x-STOP_REACH&&i.minX<x+STOP_REACH&&i.maxZ>z-STOP_REACH&&i.minZ<z+STOP_REACH);
+    setStampStops(target,createCoastQuery(near,kmPerWorldUnitAt));
   }
 }
 const landmarkGroup = new THREE.Group();
