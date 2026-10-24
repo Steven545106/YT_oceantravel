@@ -12,7 +12,7 @@ zones of regions listed before it. Land already in another country's coast file 
 Yalu), and islands left mostly cut away (Kinmen and Matsu, in taiwan_coast.json) are dropped.
 
 Needs shapely and pyshp (pip install shapely pyshp). Run from the project root, e.g.:
-  <venv>/bin/python scripts/build_coast.py <preset: china | philippines> <land-polygons-split-4326 folder>
+  <venv>/bin/python scripts/build_coast.py <preset: vietnam | china | philippines> <land-polygons-split-4326 folder>
 Boundary and province files are read from scripts/source-data/boundaries.
 """
 import json
@@ -36,8 +36,8 @@ BOUNDARIES = os.path.join(SOURCE, 'boundaries')
 # provinces in degrees), earlier regions win.
 PRESETS = {
     'china': {
-        'area': (108.3, 18.0, 126.0, 43.6),
-        'exclude': ['taiwan_coast.json', 'north_korea_coast.json'],
+        'area': (104.3, 18.0, 126.0, 43.6),
+        'exclude': ['taiwan_coast.json', 'north_korea_coast.json', 'vietnam_coast.json'],
         'provinces': 'geoBoundaries-CHN-ADM1.geojson',
         'exact': {'Hong Kong Special Administrative Region', 'Macau Special Administrative Region'},
         'regions': [
@@ -46,11 +46,18 @@ PRESETS = {
             # "Guangzhou Province" is Guangdong in this file; Beijing has no coast but would otherwise be a hole inside Hebei
             ('china_coast.json', ['Liaoning Province', 'Hebei Province', 'Beijing Municipality', 'Tianjin Municipality', 'Shandong Province',
                                   'Jiangsu Province', 'Shanghai Municipality', 'Zhejiang Province', 'Fujian Province', 'Guangzhou Province',
-                                  'Hainan Province'], .3),
+                                  'Hainan Province', 'Guangxi Zhuang Autonomous Region'], .3),
         ],
     },
     # The whole country inside its OSM boundary (territorial waters included). West of 116.8°E (the disputed Spratlys)
     # is left out.
+    # Run before 'china', which cuts Vietnam's land out of Guangxi. East of 109.6°E (the disputed Paracels and Spratlys)
+    # is left out.
+    'vietnam': {
+        'area': (102.1, 8.3, 109.6, 23.5),
+        'exclude': [],
+        'regions': [('vietnam_coast.json', 'vn.geojson', 0)],
+    },
     'philippines': {
         'area': (116.8, 4.3, 127.0, 21.4),
         'exclude': ['taiwan_coast.json'],

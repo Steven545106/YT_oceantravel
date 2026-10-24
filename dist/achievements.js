@@ -48,7 +48,12 @@ addEventListener('storage', (event) => { if (event.key === STORAGE_KEY) { try { 
 const requirementsOf = (code) => countryByCode(code)?.unlock ?? [];
 const allMet = (ids) => ids.every((id) => !!data.unlocked[id]);
 // country (as a name or a land code) -> unlocked?, and the message shown when it is still locked
-export const isCountryUnlocked = (country) => allMet(requirementsOf(countryCode(country)));
+// Whether the player has really earned a country (what stamps, achievements and the stamp book go by).
+export const isCountryEarned = (country) => allMet(requirementsOf(countryCode(country)));
+// ?unlock=all opens every country's waters, sights and routes for a look round, without recording anything there:
+// stamps and achievements still need the country to be earned, and nothing is saved as unlocked.
+export const PREVIEW_ALL_COUNTRIES = new URLSearchParams(globalThis.location?.search ?? '').get('unlock') === 'all';
+export const isCountryUnlocked = (country) => PREVIEW_ALL_COUNTRIES || isCountryEarned(country);
 const masterCountry = (id) => id.startsWith('master:') ? id.slice(7) : null;
 // "完成「環台一圈」", "集滿韓國與北韓的所有印章", joined when a country needs both kinds
 function needsText(ids) {
@@ -89,17 +94,17 @@ export function registerMasterBadges(countries, progress) {
   check();
   renderPanel();
 }
-const isLocked = (definition) => !!definition.country && !isCountryUnlocked(definition.country);
+const isLocked = (definition) => !!definition.country && !isCountryEarned(definition.country);
 
 function unlock(id) {
   if (data.unlocked[id]) return;
-  const before = COUNTRIES.filter((country) => isCountryUnlocked(country.code)).length;
+  const before = COUNTRIES.filter((country) => isCountryEarned(country.code)).length;
   data.unlocked[id] = Date.now();
   const definition = DEFINITIONS.find((entry) => entry.id === id);
   save();
   // a big banner when this completes some country's unlock requirements
-  const opened = COUNTRIES.filter((country) => (country.unlock ?? []).includes(id) && isCountryUnlocked(country.code)).map((country) => country.name);
-  const big = opened.length && COUNTRIES.filter((country) => isCountryUnlocked(country.code)).length > before
+  const opened = COUNTRIES.filter((country) => (country.unlock ?? []).includes(id) && isCountryEarned(country.code)).map((country) => country.name);
+  const big = opened.length && COUNTRIES.filter((country) => isCountryEarned(country.code)).length > before
     ? `${definition?.title ?? id}${CIRCUITS.some((circuit) => circuit.id === id) ? '完成' : ''}！${opened.join('、')}已解鎖` : null;
   notify(big ?? `成就解鎖：${definition?.title ?? id}`, big ? 'big' : 'normal');
   renderPanel();
@@ -128,7 +133,7 @@ export function trackAchievements({ delta, x, z, nearestLand, night, speed, land
   sinceCheck = 0;
   // circuit sectors: bearing from the circuit's centre, clockwise from north
   for (const circuit of CIRCUITS) {
-    if (data.unlocked[circuit.id] || !isCountryUnlocked(circuit.country) || nearestLand.country !== circuit.country || nearestLand.km >= COAST_RANGE_KM) continue;
+    if (data.unlocked[circuit.id] || !isCountryEarned(circuit.country) || nearestLand.country !== circuit.country || nearestLand.km >= COAST_RANGE_KM) continue;
     if (circuit.minLatitude !== undefined && worldToGeo(x, z).latitude <= circuit.minLatitude) continue;   // e.g. the Ryukyus don't count for Japan
     const angle = (Math.atan2(x - circuit.origin.x, -(z - circuit.origin.y)) + Math.PI * 2) % (Math.PI * 2);
     const sector = Math.floor(angle / (Math.PI * 2 / SECTORS)) % SECTORS;
@@ -136,10 +141,10 @@ export function trackAchievements({ delta, x, z, nearestLand, night, speed, land
   }
   for (const item of landmarks ?? []) {
     if (data.counters.landmarks.includes(item.name)) continue;
-    if (isCountryUnlocked(item.country) && isWithinStampReach(item,x,z)) { data.counters.landmarks.push(item.name); renderPanel(); }
+    if (isCountryEarned(item.country) && isWithinStampReach(item,x,z)) { data.counters.landmarks.push(item.name); renderPanel(); }
   }
   for (const country of COUNTRIES) {
-    if (country.arrival && !data.unlocked[country.arrival] && isCountryUnlocked(country.code) && nearestLand.country === country.code && nearestLand.km < 20) unlock(country.arrival);
+    if (country.arrival && !data.unlocked[country.arrival] && isCountryEarned(country.code) && nearestLand.country === country.code && nearestLand.km < 20) unlock(country.arrival);
   }
   check();
   if ((saveTimer += .5) >= 5) { saveTimer = 0; save(); }
@@ -171,7 +176,7 @@ function renderPanel() {
   if (!ui) return;
   const status = unlockStatusText();
   ui.japan.textContent = status.join('　·　');
-  ui.japan.dataset.state = COUNTRIES.every((country) => isCountryUnlocked(country.code)) ? 'open' : 'locked';
+  ui.japan.dataset.state = COUNTRIES.every((country) => isCountryEarned(country.code)) ? 'open' : 'locked';
   const circumReady = !!data.unlocked.circumTaiwan;
   ui.circum.hidden = !circumReady;
   ui.navCircum.hidden = !circumReady;

@@ -17,11 +17,12 @@ from shapely.geometry import shape, box, Polygon
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PATH = os.path.join(ROOT, 'dist', 'Data', 'seas.json')
-CLIP = (105.0, 4.0, 165.0, 56.0)   # lon0, lat0, lon1, lat1 of the map's seas
+CLIP = (99.0, 4.0, 165.0, 56.0)   # lon0, lat0, lon1, lat1 of the map's seas
 SEAS = [
     {'en': 'South China Sea', 'zh': '南海', 'kind': 'sea', 'color': '#fc8181', 'priority': 95, 'maxHeight': None, 'label': [19.0, 116.5]},
     {'en': 'Gulf of Tonkin', 'zh': '北部灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 60, 'maxHeight': 2200, 'label': [20.3, 108.3]},
     {'en': 'Qiongzhou Strait', 'zh': '瓊州海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 55, 'maxHeight': 900, 'label': [20.2, 110.25]},
+    {'en': 'Gulf of Thailand', 'zh': '泰國灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 70, 'maxHeight': 2600, 'label': [9.8, 102.5]},
     {'en': 'Philippine Sea', 'zh': '菲律賓海', 'kind': 'sea', 'color': '#b794f4', 'priority': 95, 'maxHeight': None, 'label': [24.0, 135.0]},
     {'en': 'Sulu Sea', 'zh': '蘇祿海', 'kind': 'sea', 'color': '#f6ad55', 'priority': 80, 'maxHeight': 2600, 'label': [8.8, 120.2]},
     {'en': 'Celebes Sea', 'zh': '西里伯斯海', 'kind': 'sea', 'color': '#f6ad55', 'priority': 80, 'maxHeight': 2600, 'label': [5.5, 122.5]},

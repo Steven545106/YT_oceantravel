@@ -2,7 +2,7 @@ import { normalizeJourney, parseProgress } from './progress-data.js';
 // Voyage log + stamp book. Progress is saved in localStorage: sailing distance and time, seas and coasts visited, whale sightings,
 // a short timeline, and a stamp for every sight the boat first reaches (with a little introduction for each).
 import { isWithinStampReach } from './stamp-reach.js';
-import { isCountryUnlocked, lockMessage, registerMasterBadges } from './achievements.js';
+import { isCountryEarned, isCountryUnlocked, lockMessage, registerMasterBadges } from './achievements.js';
 import { COUNTRY_ORDER, countryName } from './regions.js';
 
 export const hasStamp=name=>!!data.stamps[name];
@@ -130,7 +130,7 @@ export function trackJourney({ delta, x, z, kmPerUnit, speed, seaName, nearestLa
     logEvent(`第一次靠近${countryName(nearestLand.country)}海岸`);
   }
   for (const target of targets) {
-    const inside = isCountryUnlocked(target.country) && isWithinStampReach(target,x,z);
+    const inside = isCountryEarned(target.country) && isWithinStampReach(target,x,z);
     if (inside && !visiting.has(target.name)) { visiting.add(target.name); onVisit(target); }   // every arrival counts, stamped or not
     else if (!inside) visiting.delete(target.name);
     if (data.stamps[target.name]) continue;
@@ -184,7 +184,7 @@ function renderStamps() {
     const head = el('div', 'stamp-group-head');
     head.append(el('h3', '', country), el('span', 'stamp-group-count', `${done} / ${list.length}`));
     const badge = el('span', `stamp-master${master ? ' is-earned' : ''}`, master ? `🏅 ${country}達人` : `${country}達人（集滿解鎖）`);
-    if (!isCountryUnlocked(country)) badge.textContent = `🔒 ${lockMessage(country)}`;
+    if (!isCountryEarned(country)) badge.textContent = `🔒 ${lockMessage(country)}`;
     head.append(badge);
     const bar = el('div', 'stamp-group-bar'); const fill = el('span'); fill.style.width = `${done / list.length * 100}%`; bar.append(fill);
     const grid = el('div', 'stamp-grid');

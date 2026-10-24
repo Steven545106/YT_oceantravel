@@ -24,7 +24,7 @@ import { cycleQuality, quality } from './quality.js';
 import { createAmbience } from './ambience.js';
 import { initSettings } from './settings.js';
 import { initJourney, journeyOpen, logEvent, recordSpecialStamp, recordWhale, setJourneyOpen, setStampTargets, trackJourney } from './journey.js';
-import { JAPAN_BARRIER_KM, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
+import { JAPAN_BARRIER_KM, PREVIEW_ALL_COUNTRIES, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
 import { ELUANBI_OFFSHORE_START, geoToWorld, kmPerWorldUnitAt, worldToGeo } from './geo.js';
 import { placeCountries } from './places.js';
 import { COUNTRY_LABELS, buildCoarseRelief, distanceToLand, isOnLand, landIslands, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
@@ -386,6 +386,7 @@ const PINK_WHALE_CHANCE = .05;
 let pinkWhalePending = 0;
 initJourney({ onNotify: showEventToast, onVisit: () => { if (Math.random() < PINK_WHALE_CHANCE) pinkWhalePending = 30; } });
 initAchievements({ onNotify: (text, kind) => { showEventToast(text, kind); if (!text.startsWith('蓋章')) logEvent(text); }, onCircumnavigate: () => runNavigation('@circum') });
+if (PREVIEW_ALL_COUNTRIES) setTimeout(() => showEventToast('預覽模式：所有國家都已開放，未解鎖國家不會集章或記錄成就'), 1500);
 const lightningFx = createLightningFx();
 // BOAT_WATERLINE_Y is where the boat's origin rides; the water surface itself is the plane y = 0.
 const SEA_LEVEL = 0;
