@@ -11,7 +11,7 @@ export const countryByCode = (code) => byCode.get(code) ?? null;
 // a land code ('jp') or a display name ('日本') -> code, or the input unchanged when it is neither
 export const countryCode = (country) => byCode.has(country) ? country : byName.get(country)?.code ?? country;
 export const countryName = (code) => byCode.get(code)?.name ?? code;
-export const COUNTRY_LABELS = Object.fromEntries(COUNTRIES.map(({ code, label }) => [code, label]));
+export const COUNTRY_NAMES = Object.fromEntries(COUNTRIES.map(({ code, name }) => [code, name]));
 
 const { exaggeration } = registry;
 // Vertical exaggeration of terrain relief: stronger where the registry asks for it (Taiwan's ranges are the main show).

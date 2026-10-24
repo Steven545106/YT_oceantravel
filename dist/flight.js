@@ -17,7 +17,7 @@ const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const approach=(value,target,step)=>value<target?Math.min(value+step,target):Math.max(value-step,target);
 
 export function createFlightState({x=0,y=.8,z=0,heading=0,mode='hover',speed=0}={}){
-  return {x,y,z,heading,mode,speed,verticalSpeed:0,bank:0,pitch:0,warning:'',turbo:null};
+  return {x,y,z,heading,mode,speed,verticalSpeed:0,bank:0,pitch:0,warning:'',turbo:null,turboEndless:false};
 }
 
 export function landingSite(flight,{isOnLand,terrainHeightAt,obstacleTopAt=()=>-Infinity}){
@@ -57,14 +57,17 @@ export const turboCooldownLeft=(lastUsed,now)=>Number.isFinite(lastUsed)?Math.ma
 // Turbo boost multiplier for the current moment, or 1 when it is not running.
 export const turboMultiplier=(flight)=>flight.turbo===null?1:1+(TURBO_MULTIPLIER-1)*Math.min(1,flight.turbo/TURBO_RAMP_SECONDS);
 
-export function requestTurbo(flight,{lastUsed,now}){
+// `unlimited` (test mode): no cooldown, and the boost lasts until stopTurbo instead of TURBO_HOLD_SECONDS.
+export function requestTurbo(flight,{lastUsed,now,unlimited=false}){
   if(flight.mode!=='flying'&&flight.mode!=='hover')return {ok:false,reason:'起飛後才能使用 Turbo'};
   if(flight.turbo!==null)return {ok:false,reason:'Turbo 已在加速中'};
-  const left=turboCooldownLeft(lastUsed,now);
+  const left=unlimited?0:turboCooldownLeft(lastUsed,now);
   if(left>0)return {ok:false,reason:`Turbo 冷卻中，還要 ${Math.ceil(left/60000)} 分鐘`};
-  flight.mode='flying';flight.turbo=0;flight.warning='';
+  flight.mode='flying';flight.turbo=0;flight.turboEndless=unlimited;flight.warning='';
   return {ok:true};
 }
+
+export function stopTurbo(flight){flight.turbo=null;flight.turboEndless=false;}
 
 function safeHeight(x,z,env){
   let ground=0;
@@ -76,7 +79,7 @@ function safeHeight(x,z,env){
 export function flightStep(flight,input,env,delta){
   const dt=clamp(delta,0,.05),oldY=flight.y;
   flight.warning='';
-  if(flight.mode!=='flying')flight.turbo=null;   // hovering, landing or parking ends turbo
+  if(flight.mode!=='flying')stopTurbo(flight);   // hovering, landing or parking ends turbo
   if(flight.mode==='grounded'){
     const site=landingSite(flight,env);
     if(site.ok)flight.y=site.height+FLIGHT_GEAR_HEIGHT;
@@ -100,7 +103,7 @@ export function flightStep(flight,input,env,delta){
   }else{
     const hover=flight.mode==='hover';
     const throttle=clamp(input.throttle??0,-1,1),steer=clamp(input.steer??0,-1,1);
-    if(flight.turbo!==null&&(throttle<0||(flight.turbo+=dt)>TURBO_RAMP_SECONDS+TURBO_HOLD_SECONDS))flight.turbo=null;   // braking ends it early
+    if(flight.turbo!==null&&(throttle<0||((flight.turbo+=dt)>TURBO_RAMP_SECONDS+TURBO_HOLD_SECONDS&&!flight.turboEndless)))stopTurbo(flight);   // braking ends it early
     const desiredSpeed=hover?(throttle>0?1.25:throttle<0?-.65:0):flight.turbo!==null?FIGHTER_CRUISE_SPEED*turboMultiplier(flight):throttle>0?FIGHTER_CRUISE_SPEED:throttle<0?1.1:clamp(flight.speed,1.4,FIGHTER_CRUISE_SPEED);   // coasting after turbo eases back to cruise
     flight.speed=approach(flight.speed,desiredSpeed,dt*(hover?2.8:3));
     flight.heading+=steer*dt*(hover ? .83 : .36);

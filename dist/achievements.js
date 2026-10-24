@@ -7,6 +7,7 @@ import { normalizeAchievements, parseProgress } from './progress-data.js';
 // Progress is saved in localStorage. Until a country is unlocked, boats are turned back at its waters.
 import { geoToWorld, worldToGeo } from './geo.js';
 import { COUNTRIES, REGIONS, countryByCode, countryCode, countryName } from './regions.js';
+import { TEST_MODE } from './test-mode.js';
 const STORAGE_KEY = 'relax-achievements-v1';
 const SECTORS = 16;
 const COAST_RANGE_KM = 60;
@@ -52,7 +53,7 @@ const allMet = (ids) => ids.every((id) => !!data.unlocked[id]);
 export const isCountryEarned = (country) => allMet(requirementsOf(countryCode(country)));
 // ?unlock=all opens every country's waters, sights and routes for a look round, without recording anything there:
 // stamps and achievements still need the country to be earned, and nothing is saved as unlocked.
-export const PREVIEW_ALL_COUNTRIES = new URLSearchParams(globalThis.location?.search ?? '').get('unlock') === 'all';
+export const PREVIEW_ALL_COUNTRIES = TEST_MODE;
 export const isCountryUnlocked = (country) => PREVIEW_ALL_COUNTRIES || isCountryEarned(country);
 const masterCountry = (id) => id.startsWith('master:') ? id.slice(7) : null;
 // "完成「環台一圈」", "集滿韓國與北韓的所有印章", joined when a country needs both kinds

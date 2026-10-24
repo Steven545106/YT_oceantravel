@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {buildFighter,FIGHTER_PAINTS} from '../dist/fighter.js';
 import {createFlightState,flightStep,landingSite,requestLanding,requestTakeoff,toggleHover,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from '../dist/flight.js';
-import {requestTurbo,turboCooldownLeft,TURBO_COOLDOWN_MS,TURBO_MULTIPLIER} from '../dist/flight.js';
+import {requestTurbo,stopTurbo,turboCooldownLeft,TURBO_COOLDOWN_MS,TURBO_MULTIPLIER} from '../dist/flight.js';
 import {createFlightHoldInput,FLIGHT_HOLD_MS} from '../dist/flight-input.js';
 import {BASE_CRUISE_SPEED,YACHT_SPEED_FACTOR,FIGHTER_CRUISE_SPEED} from '../dist/vehicle-speeds.js';
 import {flightFeedback} from '../dist/flight-feedback.js';
@@ -197,4 +197,16 @@ test('turbo reaches three times top speed within 10 seconds, then eases back, on
   assert.equal(hovering.mode,'flying');
   flightStep(hovering,{throttle:-1},openSky,.05);
   assert.equal(hovering.turbo,null);
+});
+
+test('test-mode turbo ignores the cooldown, keeps going until switched off, and can start again at once',()=>{
+  const openSky={...land,isOnLand:()=>false,terrainHeightAt:()=>0,bounds:{minX:-1e5,maxX:1e5,minZ:-1e5,maxZ:1e5}};
+  const aircraft=createFlightState({x:0,y:2,z:0,mode:'flying',speed:FIGHTER_CRUISE_SPEED});
+  assert.equal(requestTurbo(aircraft,{lastUsed:0,now:1,unlimited:true}).ok,true);
+  for(let i=0;i<1200;i++)flightStep(aircraft,{throttle:1},openSky,.05);   // a minute, well past the normal 30 s
+  assert.notEqual(aircraft.turbo,null);
+  assert.equal(aircraft.speed,FIGHTER_CRUISE_SPEED*TURBO_MULTIPLIER);
+  stopTurbo(aircraft);
+  assert.equal(aircraft.turbo,null);
+  assert.equal(requestTurbo(aircraft,{lastUsed:1,now:2,unlimited:true}).ok,true);
 });

@@ -6,8 +6,8 @@ import * as THREE from 'three';
 import { fetchGrayPixels, fetchJson, markLoaded } from './data-loader.js';
 import { WORLD_MAX_X, WORLD_MIN_X, WORLD_UNITS_PER_KM, WORLD_WIDTH, geoToWorld, worldToGeo, kmPerWorldUnitAt } from './geo.js';
 import { boat, camera, reflectionExclusions, scene } from './core.js';
-import { REGIONS, COUNTRIES, COUNTRY_LABELS, countryByCode, exaggerationAt } from './regions.js';
-export { COUNTRY_LABELS };
+import { REGIONS, COUNTRIES, COUNTRY_NAMES, countryByCode, exaggerationAt } from './regions.js';
+export { COUNTRY_NAMES };
 
 // ---------------------------------------------------------------------------
 // Land, streamed by region (see regions.js / Data/regions.json):

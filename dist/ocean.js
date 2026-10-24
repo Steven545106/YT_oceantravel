@@ -1,5 +1,5 @@
 import {initCameraZoom} from './camera-zoom.js';
-import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,toggleHover,turboCooldownLeft,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
+import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,stopTurbo,toggleHover,turboCooldownLeft,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
 import {createFlightHoldInput} from './flight-input.js';
 import {flightFeedback} from './flight-feedback.js';
 import {createJetSound} from './jet-sound.js';
@@ -9,6 +9,7 @@ import { updateLandmarkHud } from './landmark-hud.js';
 import {setStampGuidanceEnabled} from './stamp-guidance.js';
 import { sceneryObstacles, movementBlocked } from './nav-obstacles.js';
 import { keyOf, movementAxes, isMovementKey, isTextControl } from './controls.js';
+import { TEST_MODE } from './test-mode.js';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createWhaleEvent } from './whale.js';
@@ -27,7 +28,7 @@ import { initJourney, journeyOpen, logEvent, recordSpecialStamp, recordWhale, se
 import { JAPAN_BARRIER_KM, PREVIEW_ALL_COUNTRIES, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
 import { ELUANBI_OFFSHORE_START, geoToWorld, kmPerWorldUnitAt, worldToGeo, wrapWorldX } from './geo.js';
 import { loadCountryPlaces, placeCountries } from './places.js';
-import { COUNTRY_LABELS, buildCoarseRelief, distanceToLand, isOnLand, landIslands, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
+import { COUNTRY_NAMES, buildCoarseRelief, distanceToLand, isOnLand, landIslands, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
 import { revealGame, startingHeading, BOAT_WATERLINE_Y, WORLD_BOUNDS, boat, boatLights, camera, compassDial, currentVehicleType, cycleTimeMode, cycleWeatherMode, fpsReadout, glowTexture, headingReadout, landDistanceReadout, lighthouseBeacons, loading, positionReadout, reflectionExclusions, renderer, scene, sky, directional, sun, setWeatherAlert, speedReadout, startingWorldPosition, timeOfDay, updateDayCycle, updateWeather, water, weatherBlend, windDirection, windReadout } from './core.js';
 import { createSeaLife } from './sea-life.js';
 import { createSeaFx } from './sea-fx.js';
@@ -190,14 +191,16 @@ const flightTurboButton=document.querySelector('#flight-turbo');
 const lastTurboUse=()=>{try{return Number(localStorage.getItem(TURBO_KEY))||NaN;}catch{return NaN;}};
 function flightTurbo(){
   if(currentVehicleType()!=='fighter')return;
-  const now=Date.now(),result=requestTurbo(aircraft,{lastUsed:lastTurboUse(),now});
-  if(result.ok)try{localStorage.setItem(TURBO_KEY,String(now));}catch{/* private mode: cooldown lasts this session only */}
-  showEventToast(result.ok?'Turbo！10 秒內加速到最高速度 3 倍':result.reason);
+  // test mode: E switches Turbo on and off, with no cooldown and nothing saved
+  if(TEST_MODE&&aircraft.turbo!==null){stopTurbo(aircraft);showEventToast('Turbo 已關閉');return;}
+  const now=Date.now(),result=requestTurbo(aircraft,{lastUsed:lastTurboUse(),now,unlimited:TEST_MODE});
+  if(result.ok&&!TEST_MODE)try{localStorage.setItem(TURBO_KEY,String(now));}catch{/* private mode: cooldown lasts this session only */}
+  showEventToast(result.ok?TEST_MODE?'Turbo！10 秒內加速到最高速度 3 倍，再按 E 關閉':'Turbo！10 秒內加速到最高速度 3 倍':result.reason);
 }
 flightTurboButton?.addEventListener('click',()=>flightTurbo());
 function updateTurboButton(){
   if(!flightTurboButton)return;
-  const left=turboCooldownLeft(lastTurboUse(),Date.now());
+  const left=TEST_MODE?0:turboCooldownLeft(lastTurboUse(),Date.now());
   const text=aircraft.turbo!==null?`Turbo ${turboMultiplier(aircraft).toFixed(1)}×`:left>0?`E Turbo ${Math.floor(left/60000)}:${String(Math.floor(left/1000)%60).padStart(2,'0')}`:'E Turbo';
   if(flightTurboButton.textContent!==text)flightTurboButton.textContent=text;
   flightTurboButton.classList.toggle('is-active',aircraft.turbo!==null);
@@ -399,7 +402,7 @@ const PINK_WHALE_CHANCE = .05;
 let pinkWhalePending = 0;
 initJourney({ onNotify: showEventToast, onVisit: () => { if (Math.random() < PINK_WHALE_CHANCE) pinkWhalePending = 30; } });
 initAchievements({ onNotify: (text, kind) => { showEventToast(text, kind); if (!text.startsWith('蓋章')) logEvent(text); }, onCircumnavigate: () => runNavigation('@circum') });
-if (PREVIEW_ALL_COUNTRIES) setTimeout(() => showEventToast('預覽模式：所有國家都已開放，未解鎖國家不會集章或記錄成就'), 1500);
+if (PREVIEW_ALL_COUNTRIES) setTimeout(() => showEventToast('測試模式：所有國家開放、Turbo 不限次數（E 開／關），未解鎖國家不會集章或記錄成就'), 1500);
 const lightningFx = createLightningFx();
 // BOAT_WATERLINE_Y is where the boat's origin rides; the water surface itself is the plane y = 0.
 const SEA_LEVEL = 0;
@@ -672,8 +675,8 @@ function animate() {
   const latitudeHemisphere = coordinates.latitude >= 0 ? 'N' : 'S';
   const longitudeHemisphere = coordinates.longitude >= 0 ? 'E' : 'W';
   positionReadout.textContent = `${Math.abs(coordinates.latitude).toFixed(3)}° ${latitudeHemisphere} · ${Math.abs(coordinates.longitude).toFixed(3)}° ${longitudeHemisphere}`;
-  const coastName = COUNTRY_LABELS[nearestLand.country];
-  landDistanceReadout.textContent = nearestLand.km < .2 ? `${coastName} COAST · ARRIVED` : `${coastName} COAST · ${nearestLand.km.toFixed(1)} km`;
+  const coastName = COUNTRY_NAMES[nearestLand.country];
+  landDistanceReadout.textContent = nearestLand.km < .2 ? `${coastName}海岸 · 已抵達` : `${coastName}海岸 · ${nearestLand.km.toFixed(1)} km`;
   // The sea plane and sky box are finite (10,000 units): keep them centred on the camera so they never run out,
   // however far the map reaches. Water ripples are sampled in world space, so moving the plane does not slide them.
   water.position.x = camera.position.x; water.position.z = camera.position.z;
