@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { geoToWorld } from './geo.js';
 import { isOnLand, landIslandAt } from './land.js';
-import { placeCountries } from './places.js';
+import { onPlacesAdded, placeCountries } from './places.js';
 import { boat, camera } from './core.js';
 import { cameraAnchor, topDownView } from './state.js';
 
@@ -34,8 +34,8 @@ const landIslandAreaKm2At = (x, z) => landIslandAt(x, z)?.areaKm2 ?? 0;
 // Island, prefecture/county and city names straight from the place list.
 const MAJOR_ISLANDS = new Set(['臺灣', '台灣', '本州', '九州', '北海道', '四国', '四國', '濟州島']);
 const namedIslands = new Set();
-function registerPlaceLabels() {
-  for (const { country, places } of placeCountries) {
+function registerPlaceLabels(lists) {
+  for (const { country, places } of lists) {
     for (const place of places) {
       if (place.type === 'ISL' || place.type === 'ISLS') {
         const world = geoToWorld({ latitude: place.lat, longitude: place.lon });
@@ -67,7 +67,9 @@ function registerPlaceLabels() {
     }
   }
 }
-registerPlaceLabels();
+registerPlaceLabels(placeCountries);
+// a country's full place list arrives when its coast streams in; label the newly added places then
+onPlacesAdded((entry, added) => registerPlaceLabels([{ country: entry.country, places: added }]));
 
 const boatLabel = { text: '▲ 我的船', x: 0, z: 0, kind: 'boat', priority: 1000, maxHeight: Infinity, minHeight: 0, color: null, halfWidth: 34, halfHeight: 9, key: 'boat' };
 mapLabels.push(boatLabel);

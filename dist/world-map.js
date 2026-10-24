@@ -7,7 +7,7 @@ import { WORLD_BOUNDS, boat, currentVehicleType } from './core.js';
 import { REGIONS } from './regions.js';
 import { landIslands } from './land.js';
 import { seaMainAnchors } from './seas.js';
-import { PLACE_TYPE_WEIGHT, placeCountries } from './places.js';
+import { PLACE_TYPE_WEIGHT, placeCountries, placesVersion } from './places.js';
 import { runNavigation } from './nav.js';
 
 // ---------------------------------------------------------------------------
@@ -281,10 +281,11 @@ function mapPointToWorld(clientX, clientY) {
   return { x: bitmapX / MAP_PIXELS_PER_UNIT + MAP_BOUNDS.minX, z: bitmapY / MAP_PIXELS_PER_UNIT + MAP_BOUNDS.minZ };
 }
 const MAP_CLICK_TYPES = new Set(['ADM1', 'ADM2', 'PPLC', 'PPLA', 'PPLA2', 'ISL', 'CAPE', 'LTHSE', 'HBR', 'PRT']);
-let mapClickPlaces = null;
+let mapClickPlaces = null, mapClickVersion = -1;
 // The named place under the cursor (within ~16 screen px), else null so a click falls back to raw coordinates.
 function mapPlaceNear(clientX, clientY) {
-  if (!mapClickPlaces) {
+  if (!mapClickPlaces || mapClickVersion !== placesVersion) {
+    mapClickVersion = placesVersion;
     mapClickPlaces = [];
     for (const { country, places } of placeCountries) {
       for (const place of places) {

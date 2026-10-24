@@ -184,10 +184,10 @@ export function distanceToLand(x, z) {
   return { km: Math.sqrt(bestSquared) * kmPerWorldUnitAt(z), country: bestCountry };
 }
 
-// Listeners hear { kind: 'coast' | 'dem', box } whenever detail arrives or leaves, e.g. to lift sights onto new heights.
+// Listeners hear { kind: 'coast' | 'dem', box, country } whenever detail arrives or leaves, e.g. to lift sights onto new heights.
 const landListeners = [];
 export const onLandChange = (listener) => { landListeners.push(listener); };
-const emitLandChange = (kind, box) => { for (const listener of landListeners) listener({ kind, box }); };
+const emitLandChange = (kind, box, country = null) => { for (const listener of landListeners) listener({ kind, box, country }); };
 
 // --- Elevation -------------------------------------------------------------
 // Heightmaps store sqrt(elevation / maxMeters) in one 8-bit channel.
@@ -287,7 +287,7 @@ function setChunkIslands(chunk, islands) {
   for (const island of islands) indexIsland(island, true);
   chunk.current = islands;
   landVersion++;
-  emitLandChange('coast', chunk.box);
+  emitLandChange('coast', chunk.box, chunk.meta.country);
 }
 
 function loadChunk(chunk) {

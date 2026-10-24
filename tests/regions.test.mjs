@@ -38,3 +38,15 @@ test('heightmap tiles exist and lie inside the overview',async()=>{
     assert.ok(a>=lon0&&b>=lat0&&c<=lon1&&d<=lat1&&a<c&&b<d,tile.file);
   }
 });
+
+test('the start-up place index is a small part of the full lists and holds each country\'s cities, harbours and lighthouses',async()=>{
+  const index=await readJson('places/index.json');
+  let small=0,full=0;
+  for(const country of COUNTRIES){
+    const all=(await readJson(country.places)).places,few=index[country.code]??[];
+    assert.ok(few.every(p=>['ADM1','PPLC','PPLA','LTHSE','HBR','PRT'].includes(p.type)||(p.pop??0)>=50000),country.code);
+    assert.ok(few.length<=all.length,country.code);
+    small+=few.length;full+=all.length;
+  }
+  assert.ok(small<full/3);
+});

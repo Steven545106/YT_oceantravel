@@ -1,5 +1,5 @@
 import { isCountryUnlocked, lockMessage } from './achievements.js';
-import { PLACE_TYPE_WEIGHT, getPlaceIndex, normalizeName, parseNavQuery, stripAdminSuffix } from './places.js';
+import { PLACE_TYPE_WEIGHT, getPlaceIndex, hasCountryPlaces, loadCountryPlaces, normalizeName, parseNavQuery, stripAdminSuffix } from './places.js';
 import { navCancel, navForm, navInput, navSuggest, runNavigation, stopAutopilot } from './nav.js';
 
 // Grouped suggestion list: one section per country, best matches first.
@@ -9,6 +9,8 @@ const SUGGEST_PER_COUNTRY = 6;
 let suggestItems = [], suggestActive = -1;
 function suggestPlaces(text) {
   const { country, placeText } = parseNavQuery(text);
+  // once a country is typed, fetch its full place list and show the list again with it
+  if (country && !hasCountryPlaces(country)) loadCountryPlaces(country).then(() => { if (hasCountryPlaces(country) && navInput.value === text && document.activeElement === navInput) renderSuggestions(); });
   const query = normalizeName(placeText);
   const groups = new Map();
   const add = (entry, score) => {

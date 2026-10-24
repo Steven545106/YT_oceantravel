@@ -2,8 +2,10 @@ import { fetchJson, markLoaded } from './data-loader.js';
 import { isOnLand } from './land.js';
 import { COUNTRIES } from './regions.js';
 
-// one place-name file per country (see the region registry), all needed up front for search
-const placeFiles = await Promise.all(COUNTRIES.map((country) => fetchJson(country.places)));
+// Place names come in two parts (see scripts/build_regions.py): places/index.json, loaded at start-up, has every
+// country's regions, cities, harbours and lighthouses; a country's own file adds the rest (islets, bays, capes,
+// villages) when its coast streams in near the boat or jet, or when a search names that country.
+const placeIndexData = await fetchJson('places/index.json');
 markLoaded('places');
 
 // ---------------------------------------------------------------------------
@@ -23,11 +25,36 @@ export const normalizeName = (text) => [...String(text).toLowerCase().replace(/[
 export const stripAdminSuffix = (name) => (name.length > 1 ? name.replace(/(市|縣|町|村|區|都|府|鎮|鄉|郡|道)$/, '') : name);
 export const PLACE_TYPE_WEIGHT = { ADM1: 100, PPLC: 95, PPLA: 85, ADM2: 80, PPLA2: 70, ADM3: 55, PPLA3: 50, ISL: 45, ISLS: 40, PPLA4: 40, CAPE: 35, LTHSE: 35, BAY: 33, HBR: 30, PRT: 30, PPL: 20 };
 
-export const placeCountries = COUNTRIES.map((country, i) => ({
-  country: country.name, aliasKeys: new Set(country.aliases.map(normalizeName)), places: placeFiles[i].places
+export const placeCountries = COUNTRIES.map((country) => ({
+  country: country.name, code: country.code, aliasKeys: new Set(country.aliases.map(normalizeName)), places: placeIndexData[country.code] ?? []
 }));
 let placeIndex = null;
-export function invalidatePlaceIndex() { placeIndex = null; }
+// bumped whenever the place list changes, for caches built from it (map clicks)
+export let placesVersion = 0;
+export function invalidatePlaceIndex() { placeIndex = null; placesVersion++; }
+
+// A country's full place list, merged in once: places already listed keep their objects (night lights hold them),
+// sights added by landmarks.js stay, and listeners hear the newly added places (to label them).
+const fullLoads = new Map(), fullLoaded = new Set();
+const placeListeners = [];
+export const onPlacesAdded = (listener) => { placeListeners.push(listener); };
+export const hasCountryPlaces = (countryOrCode) => fullLoaded.has(placeCountries.find((item) => item.code === countryOrCode || item.country === countryOrCode)?.code);
+export function loadCountryPlaces(countryOrCode) {
+  const entry = placeCountries.find((item) => item.code === countryOrCode || item.country === countryOrCode);
+  if (!entry) return Promise.resolve();
+  if (!fullLoads.has(entry.code)) {
+    const file = COUNTRIES.find((country) => country.code === entry.code).places;
+    fullLoads.set(entry.code, fetchJson(file).then(({ places }) => {
+      const known = new Set(entry.places.map((place) => `${place.type}|${place.name}|${place.lat}|${place.lon}`));
+      const added = places.filter((place) => !known.has(`${place.type}|${place.name}|${place.lat}|${place.lon}`));
+      entry.places.push(...added);
+      fullLoaded.add(entry.code);
+      invalidatePlaceIndex();
+      for (const listener of placeListeners) listener(entry, added);
+    }).catch((error) => { fullLoads.delete(entry.code); console.error(error); }));
+  }
+  return fullLoads.get(entry.code);
+}
 export function getPlaceIndex() {
   if (placeIndex) return placeIndex;
   placeIndex = [];

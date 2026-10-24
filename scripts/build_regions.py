@@ -267,12 +267,22 @@ def build_nav_grid(config, countries):
             'countries': [c['code'] for c in countries]}
 
 
+# Loaded at start-up for every country: names for search across the map, labels, and the cities, harbours and
+# lighthouses that light up at night. Everything else (islets, bays, capes, villages) comes with the country's own file.
+INDEX_TYPES = {'ADM1', 'PPLC', 'PPLA', 'LTHSE', 'HBR', 'PRT'}
+INDEX_MIN_POP = 50000
+
+
 def build_places(config, countries):
     data = json.load(open(os.path.join(SOURCE, config['places'])))
     by_name = data['countries']
+    index = {}
     for country in countries:
-        json.dump({'places': by_name[country['name']]['places']}, open(os.path.join(OUT, 'places', f"{country['code']}.json"), 'w'),
+        places = by_name[country['name']]['places']
+        json.dump({'places': places}, open(os.path.join(OUT, 'places', f"{country['code']}.json"), 'w'),
                   ensure_ascii=False, separators=(',', ':'))
+        index[country['code']] = [p for p in places if p['type'] in INDEX_TYPES or (p.get('pop') or 0) >= INDEX_MIN_POP]
+    json.dump(index, open(os.path.join(OUT, 'places', 'index.json'), 'w'), ensure_ascii=False, separators=(',', ':'))
     return data['description']
 
 

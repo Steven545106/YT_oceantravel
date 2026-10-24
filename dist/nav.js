@@ -4,7 +4,7 @@ import * as THREE from 'three';
 import {geoToWorld,kmPerWorldUnitAt} from './geo.js';
 import {formatDuration} from './nav-grid.js';
 import {distanceToLand,landIslands,landVersion} from './land.js';
-import {isLandAt,searchPlace} from './places.js';
+import {isLandAt,loadCountryPlaces,parseNavQuery,searchPlace} from './places.js';
 import {WORLD_BOUNDS,boat,currentVehicleType} from './core.js';
 import {state} from './state.js';
 import {isCountryUnlocked,lockMessage,recordEvent} from './achievements.js';
@@ -181,6 +181,9 @@ export async function runNavigation(queryText,retriesLeft=4){
   if(queryText.trim()==='@circum')return runCircumnavigation(retriesLeft);
   if(state.navBusy||!queryText.trim())return;
   const coordinate=queryText.trim().match(/^@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)$/);
+  // a search naming a country brings in that country's full place list first
+  const named=!coordinate&&parseNavQuery(queryText).country;
+  if(named)await loadCountryPlaces(named);
   const found=coordinate?{country:'海圖',place:{name:`${Number(coordinate[1]).toFixed(2)}°N ${Number(coordinate[2]).toFixed(2)}°E`,lat:Number(coordinate[1]),lon:Number(coordinate[2])}}:searchPlace(queryText);
   if(!found){setNavStatus(`找不到「${queryText.trim()}」，請輸入「國家-地名」，例如 日本-鴨川`,'error');return;}
   const {country,place}=found;if(!isCountryUnlocked(country)){setNavStatus(`${lockMessage(country)}，才能前往`,'error');return;}

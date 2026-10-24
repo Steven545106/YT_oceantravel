@@ -26,7 +26,7 @@ import { initSettings } from './settings.js';
 import { initJourney, journeyOpen, logEvent, recordSpecialStamp, recordWhale, setJourneyOpen, setStampTargets, trackJourney } from './journey.js';
 import { JAPAN_BARRIER_KM, PREVIEW_ALL_COUNTRIES, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
 import { ELUANBI_OFFSHORE_START, geoToWorld, kmPerWorldUnitAt, worldToGeo, wrapWorldX } from './geo.js';
-import { placeCountries } from './places.js';
+import { loadCountryPlaces, placeCountries } from './places.js';
 import { COUNTRY_LABELS, buildCoarseRelief, distanceToLand, isOnLand, landIslands, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
 import { revealGame, startingHeading, BOAT_WATERLINE_Y, WORLD_BOUNDS, boat, boatLights, camera, compassDial, currentVehicleType, cycleTimeMode, cycleWeatherMode, fpsReadout, glowTexture, headingReadout, landDistanceReadout, lighthouseBeacons, loading, positionReadout, reflectionExclusions, renderer, scene, sky, directional, sun, setWeatherAlert, speedReadout, startingWorldPosition, timeOfDay, updateDayCycle, updateWeather, water, weatherBlend, windDirection, windReadout } from './core.js';
 import { createSeaLife } from './sea-life.js';
@@ -74,7 +74,8 @@ function addCityLights() {
 // layout itself is never rebuilt here: that takes seconds and froze flights that crossed many heightmap tiles.
 let regroundTimer = 0;
 const regroundBoxes = [];
-onLandChange(({ kind, box }) => {
+onLandChange(({ kind, box, country }) => {
+  if (kind === 'coast' && country) loadCountryPlaces(country);   // the country's full place list (islets, bays, villages)
   if (!landPlaced) return;
   if (kind === 'coast') { refreshStampStops(box); return; }
   regroundBoxes.push(box);
