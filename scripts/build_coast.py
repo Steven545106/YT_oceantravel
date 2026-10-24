@@ -6,9 +6,10 @@ Inputs (downloaded once, kept outside the project):
   exact boundaries     OSM administrative relations as GeoJSON, e.g. from Nominatim (Hong Kong 913110, Macau 1867188),
                        for regions whose land border must be exact; they include the territorial waters
 
-Each region is the OSM land inside its zone: its exact boundary file if it has one, otherwise the listed provinces widened by `widen` degrees (so islands and capes beyond
-the coarse province outline are kept), minus the other provinces and the zones of regions listed before it. Islands that
-touch an existing country's coast file (e.g. Kinmen and Matsu, in taiwan_coast.json) are left out.
+Each region is the OSM land inside its zone: its exact boundary file if it has one, otherwise the listed provinces widened
+by `widen` degrees (so islands and capes beyond the coarse province outline are kept), minus the other provinces and the
+zones of regions listed before it. Land already in another country's coast file is cut away (the North Korean bank of the
+Yalu), and islands left mostly cut away (Kinmen and Matsu, in taiwan_coast.json) are dropped.
 
 Needs shapely and pyshp (pip install shapely pyshp). Run from the project root, e.g.:
   <venv>/bin/python scripts/build_coast.py <land-polygons-split-4326 folder> <geoBoundaries-CHN-ADM1.geojson> <boundary folder>
@@ -25,16 +26,19 @@ from shapely.prepared import prep
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, 'scripts', 'source-data')
 SCALE = 100000
-AREA = (109.3, 20.0, 123.0, 31.6)          # lon0, lat0, lon1, lat1 searched in the OSM data
+AREA = (108.3, 18.0, 126.0, 43.6)          # lon0, lat0, lon1, lat1 searched in the OSM data
 SIMPLIFY_DEG = .0003                         # ≈ 30 m: well under the game's 200 m simplified outline
 MIN_AREA_KM2 = .005                          # drop rocks smaller than this
-EXCLUDE = ['taiwan_coast.json']              # islands already drawn for another country
+EXCLUDE = ['taiwan_coast.json', 'north_korea_coast.json']   # land already drawn for another country
 EXACT = {'Hong Kong Special Administrative Region', 'Macau Special Administrative Region'}   # coarse outlines with exact boundaries
 # (output file, exact boundary file or provinces in the zone, how far to widen provinces in degrees); earlier regions win
 REGIONS = [
     ('hong_kong_coast.json', 'hk.geojson', 0),
     ('macau_coast.json', 'mo.geojson', 0),
-    ('china_coast.json', ['Fujian Province', 'Zhejiang Province', 'Guangzhou Province'], .3),   # "Guangzhou Province" is Guangdong in this file
+    # "Guangzhou Province" is Guangdong in this file; Beijing has no coast but would otherwise be a hole inside Hebei
+    ('china_coast.json', ['Liaoning Province', 'Hebei Province', 'Beijing Municipality', 'Tianjin Municipality', 'Shandong Province',
+                          'Jiangsu Province', 'Shanghai Municipality', 'Zhejiang Province', 'Fujian Province', 'Guangzhou Province',
+                          'Hainan Province'], .3),
 ]
 
 
@@ -81,7 +85,8 @@ def main(land_folder, provinces_path, boundary_folder):
             ring = list(decode(flat))
             if len(ring) >= 3:
                 excluded.append(Polygon(ring).buffer(0))
-    excluded = prep(unary_union(excluded).buffer(.01))
+    excluded = unary_union(excluded)
+    excluded_test = prep(excluded.buffer(.01))
 
     taken = None
     for file, names, widen in REGIONS:
@@ -98,8 +103,17 @@ def main(land_folder, provinces_path, boundary_folder):
         result = land.intersection(zone)
         polygons = [result] if isinstance(result, Polygon) else [g for g in getattr(result, 'geoms', []) if isinstance(g, Polygon)]
         polys = []
+        kept = []
         for polygon in polygons:
-            if area_km2(polygon) < MIN_AREA_KM2 or excluded.intersects(polygon):
+            if excluded_test.intersects(polygon):
+                rest = polygon.difference(excluded.buffer(.002))
+                if rest.area < polygon.area * .5:
+                    continue   # an island that is really another country's
+                kept += [rest] if isinstance(rest, Polygon) else [g for g in getattr(rest, 'geoms', []) if isinstance(g, Polygon)]
+            else:
+                kept.append(polygon)
+        for polygon in kept:
+            if area_km2(polygon) < MIN_AREA_KM2:
                 continue
             outline = polygon.exterior.simplify(SIMPLIFY_DEG, preserve_topology=False)
             coords = list(outline.coords)[:-1]

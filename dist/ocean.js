@@ -646,6 +646,10 @@ function animate() {
   // however far the map reaches. Water ripples are sampled in world space, so moving the plane does not slide them.
   water.position.x = camera.position.x; water.position.z = camera.position.z;
   sky.position.copy(camera.position);
+  // Seen from high up (chart view, jet at altitude) a fixed 0.05 near plane leaves too little depth precision, and low
+  // plains just above sea level flicker through the water; push the near plane out with the camera's height.
+  const near = THREE.MathUtils.clamp(camera.position.y * .02, .05, 40);
+  if (Math.abs(near - camera.near) > camera.near * .1) { camera.near = near; camera.updateProjectionMatrix(); }
   renderer.render(scene, camera);
 }
 

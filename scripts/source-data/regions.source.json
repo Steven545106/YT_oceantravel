@@ -5,7 +5,7 @@
   "demTileDegrees": 2,
   "overviewPixelsPerDegree": 40,
   "demMaxMeters": 4000,
-  "worldBounds": { "minX": -300, "maxX": 900, "minZ": -760, "maxZ": 330 },
+  "worldBounds": { "minX": -340, "maxX": 900, "minZ": -760, "maxZ": 330 },
   "nav": { "cell": 2, "barrierKm": 12 },
   "exaggeration": { "default": 1.15, "areas": [{ "bounds": [119.95, 21.7, 122.3, 25.5], "value": 1.9 }] },
   "countries": [
@@ -32,7 +32,7 @@
   ],
   "places": "places.json",
   "dem": [
-    { "id": "cn", "file": "china_dem.png", "bounds": [109.3, 20.0, 123.0, 31.6], "quality": 90 },
+    { "id": "cn", "file": "china_dem.png", "bounds": [108.3, 18.0, 126.0, 43.6], "quality": 90 },
     { "id": "tw", "file": "taiwan_dem.png", "bounds": [118.0, 21.8, 122.1, 26.5] },
     { "id": "ph", "file": "philippines_dem.png", "bounds": [116.8, 12.0, 124.6, 21.2], "quality": 90 },
     { "id": "ea", "file": "japan_dem.webp", "bounds": [122.9, 24.0, 154.1, 45.7], "quality": 90 }
