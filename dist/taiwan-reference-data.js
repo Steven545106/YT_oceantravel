@@ -11,6 +11,7 @@ export const TAIWAN_REFERENCE_MODELS = [
   {type:'gorge',name:'太魯閣',features:'大理岩峽谷、金黃屋瓦長春祠與飛瀑、崖邊道路',sources:['https://www.taroko.gov.tw/ch/trailsAttractions/attractions/11']},
   {type:'nsysu',name:'國立中山大學',features:'西子灣紅磚校名塔、鏤空瞭望室、金色直排校名、警衛室與海堤校園',sources:['https://www.cm.nsysu.edu.tw/p/404-1024-287963.php?Lang=zh-tw','https://oga.nsysu.edu.tw/p/404-1005-330051.php?Lang=zh-tw']},
   {type:'sky85',name:'高雄85大樓',features:'藍綠帷幕、雙塔腿與真正中空開口、中央塔與尖冠',sources:['https://www.taiwan.net.tw/m1.aspx?id=9328&sNo=0001016']},
+  {type:'kaohsiungAirport',name:'高雄國際機場',features:'東西向 09/27 跑道與滑行道、北側國際線和國內線航廈、空橋、停機坪及航管塔；一架起飛、一架降落，另兩架停靠',sources:['https://www.kia.gov.tw/EN/FACNSER.html','https://ais.caa.gov.tw/eaip/AIRAC%20AIP%20AMDT%2004-26_2026_10_01/eAIP/RC-AD%202%20RCKH%20%E9%AB%98%E9%9B%84%E5%9C%8B%E9%9A%9BKAOHSIUNG%20INTL-en-GB.html?amdt=show']},
   {type:'anping',name:'安平古堡',features:'方形白塔、外擴玻璃觀景室、紅瓦尖頂、紅磚臺基',sources:['https://historic.tainan.gov.tw/index.php?belongid=45&id=58&index=7&lang=cht&option=module&task=pageinfo','https://historic.tainan.gov.tw/upload/en/151/147_img_1.jpg']},
   {type:'chihkan',name:'赤崁樓',features:'錯列南北樓閣、重簷歇山紅瓦、綠色欄杆、九座贔屭碑',sources:['https://daap.ly.gov.tw/tw/daap/125-4003.html','https://twtainan.net/ja/attractions/detail/5850']},
   {type:'village',name:'九份',features:'山城階梯、茶樓燈籠與露台、昇平戲院立面',sources:['https://newtaipei.travel/zh-tw/attractions/detail/109961','https://newtaipei.travel/zh-tw/attractions/detail/110024']},

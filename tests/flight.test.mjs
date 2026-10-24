@@ -6,6 +6,7 @@ import {createFlightState,flightStep,landingSite,requestLanding,requestTakeoff,t
 import {requestTurbo,turboCooldownLeft,TURBO_COOLDOWN_MS,TURBO_MULTIPLIER} from '../dist/flight.js';
 import {createFlightHoldInput,FLIGHT_HOLD_MS} from '../dist/flight-input.js';
 import {BASE_CRUISE_SPEED,YACHT_SPEED_FACTOR,FIGHTER_CRUISE_SPEED} from '../dist/vehicle-speeds.js';
+import {flightFeedback} from '../dist/flight-feedback.js';
 
 const bounds={minX:-10,maxX:10,minZ:-10,maxZ:10};
 const land={bounds,isOnLand:(x,z)=>x>0,terrainHeightAt:(x,z)=>x>0?.2:0,obstacleTopAt:()=>-Infinity};
@@ -20,6 +21,43 @@ test('fighter has a finite closed silhouette and changes three paint schemes',()
   assert.ok(meshes<40&&triangles<10000);
   for(const paint of Object.keys(FIGHTER_PAINTS))model.userData.paint(paint);
   model.userData.setNight(true);model.userData.setNight(false);
+});
+
+test('flight feedback keeps the pursuit camera steady while Turbo changes propulsion',()=>{
+  const idle=flightFeedback(0),cruise=flightFeedback(FIGHTER_CRUISE_SPEED),turbo=flightFeedback(FIGHTER_CRUISE_SPEED*3,4);
+  assert.equal(idle.fov,61);
+  for(const feedback of [cruise,turbo,flightFeedback(FIGHTER_CRUISE_SPEED*100)]){
+    assert.equal(feedback.fov,idle.fov);
+    assert.equal(feedback.followDistance,idle.followDistance);
+    assert.equal(feedback.lookAhead,idle.lookAhead);
+  }
+  assert.ok(turbo.boost>cruise.boost&&cruise.cruise>idle.cruise);
+});
+
+test('fighter exhaust ejects bounded moving sparks and night lights the fuselage',()=>{
+  const jet=buildFighter(),flames=[],sparks=jet.getObjectByName('雙發噴射火花');
+  jet.traverse(o=>{if(o.isMesh&&o.material?.blending===THREE.AdditiveBlending)flames.push(o);});
+  assert.equal(flames.length,4);
+  assert.ok(sparks?.isLineSegments&&flames.every(o=>!o.visible));
+  const body=jet.children.find(o=>o.isMesh).material;
+  jet.userData.setNight(true);
+  assert.ok(body.emissiveIntensity>0);
+  jet.userData.setNight(false);
+  assert.equal(body.emissiveIntensity,0);
+  jet.userData.setPropulsion({...flightFeedback(FIGHTER_CRUISE_SPEED),active:true,delta:.1});
+  const beams=flames.filter(o=>o.geometry.type==='ConeGeometry'&&o.geometry.parameters.radius>.2);
+  assert.equal(beams.length,2);
+  assert.ok(beams[0].position.x<0&&beams[1].position.x>0);
+  const cruiseLength=beams[0].scale.y;
+  jet.userData.setPropulsion({...flightFeedback(FIGHTER_CRUISE_SPEED*3,4),active:true,delta:.1});
+  assert.ok(beams.every(o=>o.scale.y>cruiseLength*1.4));
+  assert.ok(sparks.visible&&flames.every(o=>o.visible));
+  const position=sparks.geometry.attributes.position;
+  assert.ok(Array.from(position.array).some((value,index)=>index%3===2&&value>3.82));
+  assert.ok(Array.from(position.array).every(Number.isFinite));
+  for(let i=0;i<12;i++)jet.userData.setPropulsion({delta:.1});
+  assert.ok(!sparks.visible&&flames.every(o=>!o.visible));
+  assert.ok(jet.userData.gear);
 });
 
 test('landing is refused over sea, steep terrain and a landmark; land accepts controlled descent',()=>{

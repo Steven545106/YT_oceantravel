@@ -12,7 +12,8 @@ zones of regions listed before it. Land already in another country's coast file 
 Yalu), and islands left mostly cut away (Kinmen and Matsu, in taiwan_coast.json) are dropped.
 
 Needs shapely and pyshp (pip install shapely pyshp). Run from the project root, e.g.:
-  <venv>/bin/python scripts/build_coast.py <land-polygons-split-4326 folder> <geoBoundaries-CHN-ADM1.geojson> <boundary folder>
+  <venv>/bin/python scripts/build_coast.py <preset: china | philippines> <land-polygons-split-4326 folder>
+Boundary and province files are read from scripts/source-data/boundaries.
 """
 import json
 import math
@@ -26,20 +27,36 @@ from shapely.prepared import prep
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.join(ROOT, 'scripts', 'source-data')
 SCALE = 100000
-AREA = (108.3, 18.0, 126.0, 43.6)          # lon0, lat0, lon1, lat1 searched in the OSM data
 SIMPLIFY_DEG = .0003                         # ≈ 30 m: well under the game's 200 m simplified outline
 MIN_AREA_KM2 = .005                          # drop rocks smaller than this
-EXCLUDE = ['taiwan_coast.json', 'north_korea_coast.json']   # land already drawn for another country
-EXACT = {'Hong Kong Special Administrative Region', 'Macau Special Administrative Region'}   # coarse outlines with exact boundaries
-# (output file, exact boundary file or provinces in the zone, how far to widen provinces in degrees); earlier regions win
-REGIONS = [
-    ('hong_kong_coast.json', 'hk.geojson', 0),
-    ('macau_coast.json', 'mo.geojson', 0),
-    # "Guangzhou Province" is Guangdong in this file; Beijing has no coast but would otherwise be a hole inside Hebei
-    ('china_coast.json', ['Liaoning Province', 'Hebei Province', 'Beijing Municipality', 'Tianjin Municipality', 'Shandong Province',
-                          'Jiangsu Province', 'Shanghai Municipality', 'Zhejiang Province', 'Fujian Province', 'Guangzhou Province',
-                          'Hainan Province'], .3),
-]
+BOUNDARIES = os.path.join(SOURCE, 'boundaries')
+# One preset per data run. area: lon0, lat0, lon1, lat1 searched in the OSM data; exclude: coast files whose land is
+# already another country's; provinces: geoBoundaries outlines for province-based zones; exact: province names that
+# have exact boundary files instead; regions: (output file, exact boundary file or province names, how far to widen
+# provinces in degrees), earlier regions win.
+PRESETS = {
+    'china': {
+        'area': (108.3, 18.0, 126.0, 43.6),
+        'exclude': ['taiwan_coast.json', 'north_korea_coast.json'],
+        'provinces': 'geoBoundaries-CHN-ADM1.geojson',
+        'exact': {'Hong Kong Special Administrative Region', 'Macau Special Administrative Region'},
+        'regions': [
+            ('hong_kong_coast.json', 'hk.geojson', 0),
+            ('macau_coast.json', 'mo.geojson', 0),
+            # "Guangzhou Province" is Guangdong in this file; Beijing has no coast but would otherwise be a hole inside Hebei
+            ('china_coast.json', ['Liaoning Province', 'Hebei Province', 'Beijing Municipality', 'Tianjin Municipality', 'Shandong Province',
+                                  'Jiangsu Province', 'Shanghai Municipality', 'Zhejiang Province', 'Fujian Province', 'Guangzhou Province',
+                                  'Hainan Province'], .3),
+        ],
+    },
+    # The whole country inside its OSM boundary (territorial waters included). West of 116.8°E (the disputed Spratlys)
+    # is left out.
+    'philippines': {
+        'area': (116.8, 4.3, 127.0, 21.4),
+        'exclude': ['taiwan_coast.json'],
+        'regions': [('philippines_coast.json', 'ph.geojson', 0)],
+    },
+}
 
 
 def decode(flat):
@@ -66,7 +83,9 @@ def area_km2(polygon):
     return polygon.area * 111.32 ** 2 * math.cos(math.radians(lat))
 
 
-def main(land_folder, provinces_path, boundary_folder):
+def main(preset_name, land_folder):
+    preset = PRESETS[preset_name]
+    AREA, EXCLUDE, EXACT = preset['area'], preset['exclude'], preset.get('exact', set())
     region_box = box(*AREA)
     reader = shapefile.Reader(os.path.join(land_folder, 'land_polygons'))
     pieces = []
@@ -78,7 +97,7 @@ def main(land_folder, provinces_path, boundary_folder):
     land = unary_union(pieces)
     print(f'OSM land pieces in area: {len(pieces)}')
 
-    provinces = {f['properties']['shapeName']: shape(f['geometry']) for f in json.load(open(provinces_path))['features']}
+    provinces = {f['properties']['shapeName']: shape(f['geometry']) for f in json.load(open(os.path.join(BOUNDARIES, preset['provinces'])))['features']} if 'provinces' in preset else {}
     excluded = []
     for name in EXCLUDE:
         for flat in json.load(open(os.path.join(SOURCE, name)))['polys']:
@@ -89,9 +108,9 @@ def main(land_folder, provinces_path, boundary_folder):
     excluded_test = prep(excluded.buffer(.01))
 
     taken = None
-    for file, names, widen in REGIONS:
+    for file, names, widen in preset['regions']:
         if isinstance(names, str):
-            zone = shape(json.load(open(os.path.join(boundary_folder, names)))['geometry']).buffer(0)
+            zone = shape(json.load(open(os.path.join(BOUNDARIES, names)))['geometry']).buffer(0).intersection(region_box)
         else:
             own = unary_union([provinces[n] for n in names])
             # outlines replaced by exact boundaries above are left out, or their coarse shapes would bite into neighbours
@@ -124,4 +143,4 @@ def main(land_folder, provinces_path, boundary_folder):
 
 
 if __name__ == '__main__':
-    main(*sys.argv[1:4])
+    main(*sys.argv[1:3])

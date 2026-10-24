@@ -6,15 +6,16 @@ import {buildReviewCatalogue,filterReviewCatalogue,REVIEW_COUNTRIES} from '../di
 import {TAIWAN_REFERENCE_MODELS} from '../dist/taiwan-reference-data.js';
 import {JAPAN_REFERENCE_MODELS} from '../dist/japan-reference-data.js';
 import {KOREA_REFERENCE_MODELS} from '../dist/korea-reference-data.js';
+import {NK_PH_REFERENCE_MODELS} from '../dist/nk-ph-reference-data.js';
 const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},{get:(t,k)=>t[k]??(()=>{})});
 globalThis.document={createElement:()=>({width:128,height:128,getContext:()=>ctx})};
 const {LANDMARK_BUILDERS}=await import('../dist/landmark-models.js');
 const landmarks=JSON.parse(await readFile(new URL('../dist/Data/landmarks.json',import.meta.url))).landmarks;
-const references=[...TAIWAN_REFERENCE_MODELS,...JAPAN_REFERENCE_MODELS,...KOREA_REFERENCE_MODELS];
+const references=[...TAIWAN_REFERENCE_MODELS,...JAPAN_REFERENCE_MODELS,...KOREA_REFERENCE_MODELS,...NK_PH_REFERENCE_MODELS];
 const items=buildReviewCatalogue(landmarks,references);
 test('unified preview covers every game landmark with unique URLs and valid builders',()=>{
   assert.equal(items.length,landmarks.length);assert.equal(new Set(items.map(item=>item.id)).size,items.length);
-  assert.deepEqual(REVIEW_COUNTRIES.map(country=>items.filter(item=>item.country===country).length),[24,29,17,10,2]);
+  assert.deepEqual(REVIEW_COUNTRIES.map(country=>items.filter(item=>item.country===country).length),[25,29,17,10,2]);
   for(const item of items){assert.equal(typeof LANDMARK_BUILDERS[item.type],'function',item.name);assert.ok(item.features);}
   for(const ref of references){const item=items.find(item=>item.name===ref.name);assert.equal(item.id,ref.id??ref.type);assert.deepEqual(item.sources,ref.sources);}
 });

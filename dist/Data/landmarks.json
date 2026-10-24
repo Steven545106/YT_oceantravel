@@ -563,6 +563,19 @@
     },
     {
       "country": "台灣",
+      "name": "高雄國際機場",
+      "lat": 22.57694,
+      "lon": 120.35028,
+      "type": "kaohsiungAirport",
+      "realHeight": 45,
+      "worldSized": true,
+      "displayScale": 0.60,
+      "seal": "小港機場",
+      "aliases": ["小港機場", "高雄小港機場", "Kaohsiung International Airport", "KHH", "RCKH"],
+      "intro": "高雄國際機場位於小港，09/27 跑道為東西向，長約 3,150 公尺；國際線與國內線航廈、停機坪及航管塔位於跑道北側。可從外海觀賞航機起降。"
+    },
+    {
+      "country": "台灣",
       "name": "安平古堡",
       "lat": 23.001,
       "lon": 120.1603,
@@ -912,6 +925,7 @@
       "lon": 128.08,
       "type": "peak",
       "realHeight": 0,
+      "options": {"volcano": "paektu"},
       "aliases": [
         "백두산",
         "Baekdusan",
@@ -1003,7 +1017,7 @@
         "伊富高梯田",
         "Ifugao"
       ],
-      "intro": "伊富高族在陡峭山坡上開墾的梯田，已有上千年歷史，被譽為「世界第八大奇蹟」，伊富高梯田於 1995 年列入世界遺產。"
+      "intro": "伊富高族在陡峭山坡上開墾的梯田；巴拿威周邊的巴達德、邦安梯田屬於 1995 年列入世界遺產的伊富高梯田群。"
     },
     {
       "country": "菲律賓",
@@ -1077,7 +1091,8 @@
       "intro": "標高約 2,463 公尺，位於呂宋島東南的阿爾拜省，以近乎完美的圓錐外形聞名，是菲律賓最活躍的火山之一。",
       "labelHeight": 2500,
       "options": {
-        "smoke": true
+        "smoke": true,
+        "volcano": "mayon"
       }
     },
     {

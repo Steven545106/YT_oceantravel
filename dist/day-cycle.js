@@ -1,6 +1,19 @@
 export const TIME_MODES=['sunrise','sunset','night'];
 export const TIME_MODE_PHASE={sunrise:.258,sunset:.747,night:0};
 export const TIME_MODE_NAMES={sunrise:'日出（東方）',sunset:'日落（西方）',night:'夜晚'};
+export const SCENIC_MODE_SECONDS=120;
+export function advanceScenicTime(cycle,delta){
+  if(!Number.isFinite(delta)||delta<=0)return false;
+  cycle.elapsed=(cycle.elapsed??0)+delta;
+  let changed=false;
+  while(cycle.elapsed>=SCENIC_MODE_SECONDS){
+    cycle.elapsed-=SCENIC_MODE_SECONDS;
+    cycle.mode=TIME_MODES[(TIME_MODES.indexOf(cycle.mode)+1)%TIME_MODES.length];
+    cycle.phase=TIME_MODE_PHASE[cycle.mode];
+    changed=true;
+  }
+  return changed;
+}
 // Fixed scenic lighting: cool, clear dawn versus hazy amber dusk.
 export const TIME_LIGHTING={
   sunrise:{exposure:.46,fog:.000035,turbidity:2.4,rayleigh:1.15,mie:.003,mieG:.8,

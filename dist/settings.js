@@ -7,11 +7,12 @@ import { quality, setQuality } from './quality.js';
 const STORAGE_KEY = 'relax-audio';
 const QUALITY_LIST = [{ id: 'high', name: '高' }, { id: 'medium', name: '中' }, { id: 'low', name: '低' }];
 
-export function initSettings({ music, whaleSound, ambience }) {
+export function initSettings({ music, whaleSound, ambience, jetSound }) {
   const sounds = {
     music: { name: '背景音樂', hint: '#music-state', on: () => music.enabled, set: (on) => music.setEnabled(on), volume: (v) => music.setVolume(v), level: () => music.volume },
     ambience: { name: '環境音（海浪・風・海鷗）', hint: '#ambience-state', on: () => !ambience.muted, set: (on) => ambience.setMuted(!on), volume: (v) => ambience.setVolume(v), level: () => ambience.volume },
-    whale: { name: '鯨魚叫聲', hint: '#sound-state', on: () => !whaleSound.muted, set: (on) => whaleSound.setMuted(!on), volume: (v) => whaleSound.setVolume(v), level: () => whaleSound.volume }
+    whale: { name: '鯨魚叫聲', hint: '#sound-state', on: () => !whaleSound.muted, set: (on) => whaleSound.setMuted(!on), volume: (v) => whaleSound.setVolume(v), level: () => whaleSound.volume },
+    jet: { name: '戰鬥機引擎', on: () => !jetSound.muted, set: (on) => jetSound.setMuted(!on), volume: (v) => jetSound.setVolume(v), level: () => jetSound.volume }
   };
   try {
     const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? 'null');
@@ -78,7 +79,7 @@ export function initSettings({ music, whaleSound, ambience }) {
       choiceRow('畫質', QUALITY_LIST, quality.level, (id) => { setQuality(id); syncHints(); }),
       choiceRow('時間', TIME_MODE_LIST, dayCycle.mode, setTimeMode),
       choiceRow('天氣', WEATHER_MODE_LIST, currentWeatherMode(), setWeatherMode),
-      soundRow('music'), soundRow('ambience'), soundRow('whale')
+      soundRow('music'), soundRow('ambience'), soundRow('whale'), soundRow('jet')
     );
   }
   const setOpen = (open) => { panel.hidden = !open; if (open) render(); };

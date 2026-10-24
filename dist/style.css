@@ -11,6 +11,7 @@ h1 { margin: 0; font-size: clamp(1.45rem, 3vw, 2.4rem); line-height: 1; font-wei
 .readout { text-align: right; background: color-mix(in srgb, #06213d 58%, transparent); border: 1px solid #9de8ff33; border-radius: 10px; padding: .65rem .85rem .55rem; backdrop-filter: blur(10px); }
 .readout span { display: block; color: #bbebfb; font-size: .58rem; letter-spacing: .18em; }
 .readout strong { color: #fff4cb; font-variant-numeric: tabular-nums; font-size: 1.6rem; font-weight: 450; }
+.readout strong.is-accelerating { color:#fff8d9; text-shadow:0 0 12px #ffcf77a0; }
 .readout small { color: #b9d4df; font-size: .72rem; }
 .readout .wind { display: block; margin-top: .28rem; color: #9ed6e9; font-size: .56rem; letter-spacing: .08em; }
 .readout .weather { display: block; margin-top: .22rem; color: #d3e6c1; font-size: .54rem; letter-spacing: .1em; }

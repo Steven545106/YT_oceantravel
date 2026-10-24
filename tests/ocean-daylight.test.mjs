@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {Water} from 'three/examples/jsm/objects/Water.js';
-import {solarAngles,TIME_MODE_PHASE,TIME_MODES,TIME_LIGHTING} from '../dist/day-cycle.js';
+import {solarAngles,TIME_MODE_PHASE,TIME_MODES,TIME_LIGHTING,SCENIC_MODE_SECONDS,advanceScenicTime} from '../dist/day-cycle.js';
 import {refineOceanSurface,OCEAN_SCENE_SCALE} from '../dist/ocean-surface.js';
 const position=phase=>{const a=solarAngles(phase);return new THREE.Vector3().setFromSphericalCoords(1,THREE.MathUtils.degToRad(90-a.elevation),THREE.MathUtils.degToRad(a.azimuth));};
 test('sunrise and sunset stay low over the correct eastern and western horizons',()=>{
@@ -38,4 +38,15 @@ test('only three scenic times are offered and dawn differs materially from dusk'
   const a=new THREE.Color(dawn.directionalColor),b=new THREE.Color(dusk.directionalColor);
   assert.ok(a.b/a.r>b.b/b.r*2,'dawn light is cooler than dusk');
   for(const mode of TIME_MODES)for(const value of Object.values(TIME_LIGHTING[mode]))assert.ok(Number.isFinite(value));
+});
+test('scenic times rotate automatically and preserve elapsed time across large frames',()=>{
+  const cycle={mode:'sunrise',phase:TIME_MODE_PHASE.sunrise,elapsed:0};
+  assert.equal(advanceScenicTime(cycle,SCENIC_MODE_SECONDS-1),false);
+  assert.equal(cycle.mode,'sunrise');
+  assert.equal(advanceScenicTime(cycle,1),true);
+  assert.equal(cycle.mode,'sunset');
+  assert.equal(advanceScenicTime(cycle,SCENIC_MODE_SECONDS*2+.5),true);
+  assert.equal(cycle.mode,'sunrise');
+  assert.equal(cycle.elapsed,.5);
+  assert.equal(cycle.phase,TIME_MODE_PHASE.sunrise);
 });

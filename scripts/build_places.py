@@ -3,6 +3,8 @@
 Keeps the place types the game uses (see PLACE_TYPE_WEIGHT in dist/places.js) that lie on the country's land in its
 coast file, or (for islands, capes, bays, harbours, lighthouses) within `SEA_REACH_KM` of it. The display name is the
 shortest Chinese form among the GeoNames alternate names, converted to Traditional characters; the rest become aliases.
+A place already in places.json for this country (same type, same position to 0.01°) keeps its existing name and aliases,
+so hand-checked names survive a rebuild; existing places the dump no longer yields (e.g. volcanoes added by hand) are kept.
 GeoNames data: CC BY 4.0, https://download.geonames.org/export/dump/
 
 Needs shapely and opencc-python-reimplemented. Run from the project root, e.g.:
@@ -47,6 +49,11 @@ def outlines(file):
 
 def main(country, coast_file, geonames_file, *aliases):
     land = outlines(coast_file)
+    path = os.path.join(SOURCE, 'places.json')
+    data = json.load(open(path))
+    previous = {}
+    for p in data['countries'].get(country, {}).get('places', []):
+        previous.setdefault((p['type'], round(p['lat'], 2), round(p['lon'], 2)), []).append(p)
     on_land = prep(land.buffer(.002))
     near = prep(land.buffer(SEA_REACH_KM / 111))
     places = []
@@ -70,12 +77,16 @@ def main(country, coast_file, geonames_file, *aliases):
         chinese.sort(key=len)
         latin = [n for n in dict.fromkeys([f[1], f[2]]) if n]
         name = next((n for n in chinese if len(n) >= 2), latin[0])
-        place = {'name': name, 'aliases': [n for n in chinese + latin if n != name][:6], 'lat': round(lat, 4), 'lon': round(lon, 4), 'type': code}
+        aliases = [n for n in chinese + latin if n != name][:6]
+        same = previous.get((code, round(lat, 2), round(lon, 2)))
+        kept = same.pop(0) if same else None
+        if kept:
+            name, aliases = kept['name'], kept['aliases']
+        place = {'name': name, 'aliases': aliases, 'lat': round(lat, 4), 'lon': round(lon, 4), 'type': code}
         if pop:
             place['pop'] = pop
         places.append(place)
-    path = os.path.join(SOURCE, 'places.json')
-    data = json.load(open(path))
+    places += [p for same in previous.values() for p in same]
     data['countries'][country] = {'aliases': list(aliases), 'places': places}
     json.dump(data, open(path, 'w'), ensure_ascii=False, separators=(',', ':'))
     print(f'{country}: {len(places)} places')

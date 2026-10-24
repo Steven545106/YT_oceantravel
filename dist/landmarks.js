@@ -118,3 +118,6 @@ export function updateLandmarkVisibility() {
     item.group.visible = isCountryUnlocked(item.country) && Math.hypot(item.displayX - camera.position.x, item.displayZ - camera.position.z) < item.visibleDistance + camera.position.y;
   }
 }
+export function updateLandmarkAnimations(elapsed) {
+  for(const item of landmarkInstances)if(item.group.visible)item.model.userData.update?.(elapsed);
+}

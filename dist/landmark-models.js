@@ -4,6 +4,8 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { refineKoreaLandmarks } from './korea-reference-models.js';
 import { refineJapanLandmarks } from './japan-reference-models.js';
+import { refineNkPhLandmarks } from './nk-ph-reference-models.js';
+import { createKaohsiungAirport } from './airport-model.js';
 
 // ---------------------------------------------------------------------------
 // Landmarks: stylised low-poly stand-ins for famous sights, placed at their real
@@ -5239,3 +5241,7 @@ refineKoreaLandmarks({builders:LANDMARK_BUILDERS,lmAdd,lmBox,lmCyl,lmMaterial,me
 addTaiwanVillages({builders:LANDMARK_BUILDERS,lmAdd,lmBox,lmCyl,lmMaterial,mergeByMaterial,roughMass,TEXTURES});
 
 addTaiwanCoastalModels({builders:LANDMARK_BUILDERS,lmAdd,lmBox,lmCyl,lmMaterial,mergeByMaterial,roughMass,patternTexture});
+
+LANDMARK_BUILDERS.kaohsiungAirport=()=>createKaohsiungAirport({lmAdd,lmBox,lmCyl,lmMaterial,mergeByMaterial});
+
+refineNkPhLandmarks({builders:LANDMARK_BUILDERS,lmAdd,lmBox,lmCyl,lmHip,lmMaterial,mergeByMaterial,roughMass,referencePlaque,TEXTURES});

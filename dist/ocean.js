@@ -1,6 +1,8 @@
 import {initCameraZoom} from './camera-zoom.js';
 import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,toggleHover,turboCooldownLeft,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
 import {createFlightHoldInput} from './flight-input.js';
+import {flightFeedback} from './flight-feedback.js';
+import {createJetSound} from './jet-sound.js';
 import {BASE_CRUISE_SPEED} from './vehicle-speeds.js';
 import { scheduleNavigationRetry } from './nav.js';
 import { updateLandmarkHud } from './landmark-hud.js';
@@ -34,7 +36,7 @@ import { createSkyFx } from './sky-fx.js';
 import { createSkyExtras } from './sky-extras.js';
 import { createLightningFx, unlockWeatherSound } from './weather-fx.js';
 import { addTaiwanLandmarks, regroundTaiwanLandmarks, setTaipei101Night } from './taiwan-landmarks.js';
-import { addLandmarks, regroundLandmarks, landmarkEntries, landmarkInstances, updateLandmarkVisibility } from './landmarks.js';
+import { addLandmarks, regroundLandmarks, landmarkEntries, landmarkInstances, updateLandmarkVisibility, updateLandmarkAnimations } from './landmarks.js';
 import { autopilotStep, markNavObstacle, nearestCoastPoint, runNavigation, setNavStatus, stopAutopilot } from './nav.js';
 import { cameraAnchor, keys, state, topDownView } from './state.js';
 import { setWorldMapOpen, updateExploration, updateWorldMap, worldMapOpen } from './world-map.js';
@@ -124,6 +126,7 @@ const forward = new THREE.Vector2();
 const starboard = new THREE.Vector2();
 const clock = new THREE.Clock();
 let aircraft=createFlightState();
+let flightKick=0,flightAcceleration=0,displayFlightKnots=0;
 const flightControls=document.querySelector('#flight-controls');
 const flightReadout=document.querySelector('#flight-readout');
 const flightModeReadout=document.querySelector('#flight-mode');
@@ -396,8 +399,9 @@ setWeatherAlert((text) => { showEventToast(text, 'big'); logEvent(text); });
 const whaleSound = createWhaleSound();
 const music = createMusic();
 const ambience = createAmbience();
-initSettings({ music, whaleSound, ambience });
-for (const type of ['pointerdown', 'keydown']) addEventListener(type, () => { whaleSound.unlock(); music.unlock(); ambience.unlock(); unlockWeatherSound(); }, { once: true });
+const jetSound = createJetSound();
+initSettings({ music, whaleSound, ambience, jetSound });
+for (const type of ['pointerdown', 'keydown']) addEventListener(type, () => { whaleSound.unlock(); music.unlock(); ambience.unlock(); jetSound.unlock(); unlockWeatherSound(); }, { once: true });
 
 document.querySelector('#whale-button')?.addEventListener('click', (event) => {
   event.currentTarget.blur();
@@ -428,13 +432,15 @@ function animate() {
   starboard.set(-forward.y, forward.x);
   let nearestLand,sideDrift=0,steer=0;
   if(currentVehicleType()==='fighter'){
-    const previousX=aircraft.x,previousZ=aircraft.z;
+    const previousX=aircraft.x,previousZ=aircraft.z,previousSpeed=aircraft.speed;
     const axes=movementAxes(keys);
     const climbHold=flightHoldInput.active('takeoff'),descendHold=flightHoldInput.active('land');
     if(climbHold&&aircraft.mode==='grounded')flightCommand('takeoff');
     if(climbHold&&aircraft.mode==='landing')aircraft.mode='hover';
     if(descendHold&&['takingOff','landing'].includes(aircraft.mode))aircraft.mode='hover';
     flightStep(aircraft,{...axes,climb:keys.has(' ')||climbHold,descend:keys.has('shift')||descendHold},flightEnvironment,delta);
+    flightAcceleration=Math.max(0,(aircraft.speed-previousSpeed)/Math.max(delta,1e-4));
+    flightKick=Math.max(flightKick*Math.exp(-delta*3.8),Math.min(1,flightAcceleration/4));
     nearestLand=distanceToLand(aircraft.x,aircraft.z);
     if(!isCountryUnlocked(nearestLand.country)&&nearestLand.km<JAPAN_BARRIER_KM){
       aircraft.x=previousX;aircraft.z=previousZ;aircraft.speed=0;aircraft.warning=lockMessage(nearestLand.country);
@@ -447,6 +453,7 @@ function animate() {
     skyExtras.update({delta,elapsed,sun,precipitation:Math.max(weatherBlend.rain,weatherBlend.storm,weatherBlend.typhoon),mist:weatherBlend.mist});
     skyFx.update({delta,elapsed,night:timeOfDay==='night',latitude:worldToGeo(aircraft.x,aircraft.z).latitude,storm:weatherBlend.storm,typhoon:weatherBlend.typhoon});
   }else{
+  flightAcceleration=0;flightKick=0;
   const autoSteer = autopilotStep(delta);
   steer = autoSteer ?? 0;
   if (autoSteer === null) {
@@ -579,6 +586,9 @@ function animate() {
   });
 
   const flying=currentVehicleType()==='fighter';
+  const feedback=flightFeedback(flying?aircraft.speed:0,flightKick*4);
+  boat.userData.ship?.userData.setPropulsion?.({...feedback,delta,active:flying&&aircraft.mode!=='grounded'&&aircraft.mode!=='landing'});
+  jetSound.update({active:flying,speed:flying?aircraft.speed:0,acceleration:flightAcceleration});
   seaFx.root.visible=!flying;
   cameraAnchor.set(boat.position.x, flying?boat.position.y:BOAT_WATERLINE_Y, boat.position.z);
   if(observation.update(delta,cameraAnchor,boat.rotation.y)){
@@ -592,14 +602,16 @@ function animate() {
     state.smoothLookReady = false;
   } else if (!state.orbitMode) {
     const follow = 1 - Math.pow(.0006, delta);
-    targetCamera.set(flying ? .18 : .5, flying ? .34 : .75 + wakeForce * .12, flying ? 1.35 : 2.2 + wakeForce * .45).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(cameraAnchor);
-    camera.position.lerp(targetCamera, follow);
-    targetLook.set(0, flying ? .08 : .2, flying ? -1.3 : -wakeForce * .4).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(cameraAnchor);
+    targetCamera.set(flying ? .18 : .5, flying ? .34 : .75 + wakeForce * .12, flying ? feedback.followDistance : 2.2 + wakeForce * .45).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(cameraAnchor);
+    if(flying)camera.position.copy(targetCamera);
+    else camera.position.lerp(targetCamera, follow);
+    targetLook.set(0, flying ? .08 : .2, flying ? -feedback.lookAhead : -wakeForce * .4).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(cameraAnchor);
     if (!state.smoothLookReady) { smoothLook.copy(targetLook); state.smoothLookReady = true; }
-    smoothLook.lerp(targetLook, Math.min(1, follow * 1.6));
+    if(flying)smoothLook.copy(targetLook);
+    else smoothLook.lerp(targetLook, Math.min(1, follow * 1.6));
     camera.lookAt(smoothLook);
     camera.rotateZ(flying?aircraft.bank*.11:-steer * wakeForce * .018 + Math.sin(elapsed * 1.3) * .012 * (waveScale - 1));
-    camera.fov = THREE.MathUtils.lerp(camera.fov, flying?61:55 + wakeForce * 9, 1 - Math.pow(.02, delta));
+    camera.fov = THREE.MathUtils.lerp(camera.fov, flying?feedback.fov:55 + wakeForce * 9, 1 - Math.pow(.02, delta));
     camera.updateProjectionMatrix();
   } else {
     controls.target.lerp(cameraAnchor, .08);
@@ -612,13 +624,19 @@ function animate() {
   updateExploration();
   updateWorldMap();
   updateLandmarkVisibility();
+  updateLandmarkAnimations(elapsed);
   updateLandmarkDetails(camera,timeOfDay==='night');
   capeScenery?.update(camera,timeOfDay==='night');
   landscapeLighting.update({camera,boat,sun,night:timeOfDay==='night',time:elapsed,storm:weatherBlend.storm});
   updateSeaName();
   updateMapLabels(state.topDownMode, camera.position.y);
   updateLandmarkHud(delta,state.topDownMode);
-  speedReadout.textContent = Math.abs(state.velocity * 40).toFixed(0);   // cruising ≈ 88 kn
+  if(flying){
+    const targetKnots=Math.abs(state.velocity*40);
+    displayFlightKnots+=(targetKnots-displayFlightKnots)*(1-Math.exp(-delta*7));
+    speedReadout.textContent=displayFlightKnots.toFixed(0);
+  }else speedReadout.textContent=Math.abs(state.velocity*40).toFixed(0);   // cruising ≈ 88 kn
+  speedReadout.classList.toggle('is-accelerating',flying&&flightKick>.12);
   if(flightReadout){
     flightReadout.hidden=!flying;
     if(flying){
@@ -678,6 +696,7 @@ function activateVehicle({previous,type}){
     try{localStorage.setItem(VOYAGE_KEY,JSON.stringify(seaVoyage));}catch{/* private mode */}
   }
   stopAutopilot();state.velocity=0;state.smoothLookReady=false;
+  flightKick=0;flightAcceleration=0;
   observation.close();state.orbitMode=false;state.topDownMode=false;controls.enabled=false;
   keys.clear();flightHoldInput.clear();lastShoreKm=Infinity;
   const fighter=type==='fighter';
@@ -689,6 +708,7 @@ function activateVehicle({previous,type}){
     }
     if(aircraft.mode==='grounded'&&!landingSite(aircraft,flightEnvironment).ok)aircraft.mode='hover';
     aircraft.y=Math.max(aircraft.y,aircraft.mode==='grounded'?terrainHeightAt(aircraft.x,aircraft.z)+.055:(isOnLand(aircraft.x,aircraft.z)?terrainHeightAt(aircraft.x,aircraft.z):0)+FLIGHT_MIN_CLEARANCE);
+    displayFlightKnots=Math.abs(aircraft.speed*40);
     syncAircraft();
     showEventToast(aircraft.mode==='grounded'?'戰鬥機在陸地待命，按 F 起飛':'戰鬥機已在空中；可飛到陸地上方降落');
   }else{

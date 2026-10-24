@@ -4,10 +4,11 @@ import { LANDMARK_BUILDERS, setLandmarkNight, setTaipei101Night, setLandmarkEnvi
 import { TAIWAN_REFERENCE_MODELS } from './taiwan-reference-data.js';
 import { KOREA_REFERENCE_MODELS } from './korea-reference-data.js';
 import { JAPAN_REFERENCE_MODELS } from './japan-reference-data.js';
+import { NK_PH_REFERENCE_MODELS } from './nk-ph-reference-data.js';
 import catalogue from './Data/landmarks.json';
 import {TERRAIN_LANDMARK_TYPES} from './landmark-scale.js';
 import {buildReviewCatalogue,filterReviewCatalogue,REVIEW_COUNTRIES} from './landmark-review-catalogue.js';
-const REFERENCE_MODELS=buildReviewCatalogue(catalogue.landmarks,[...TAIWAN_REFERENCE_MODELS,...JAPAN_REFERENCE_MODELS,...KOREA_REFERENCE_MODELS]);
+const REFERENCE_MODELS=buildReviewCatalogue(catalogue.landmarks,[...TAIWAN_REFERENCE_MODELS,...JAPAN_REFERENCE_MODELS,...KOREA_REFERENCE_MODELS,...NK_PH_REFERENCE_MODELS]);
 const modelId=item=>item.id;
 const stage=document.querySelector('#stage'),select=document.querySelector('#model'),metrics=document.querySelector('#metrics');
 const renderer=new THREE.WebGLRenderer({antialias:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.outputColorSpace=THREE.SRGBColorSpace;renderer.toneMapping=THREE.ACESFilmicToneMapping;renderer.toneMappingExposure=.85;renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;stage.append(renderer.domElement);
@@ -47,7 +48,7 @@ countrySelect.addEventListener('change',applyFilters);search.addEventListener('i
 for(const [id,step] of [['previous',-1],['next',1]])document.querySelector(`#${id}`).addEventListener('click',()=>{if(filtered.length)show(filtered[(filtered.findIndex(item=>item.id===select.value)+step+filtered.length)%filtered.length].id);});
 populate();
 function reset(){
-  const direction=(select.value==='twinHearts'?new THREE.Vector3(.3,2.8,1.2):select.value==='guishanIsland'?new THREE.Vector3(-1.3,.9,2):select.value==='gorge'?new THREE.Vector3(2,1.5,.25):select.value==='pingxiLanterns'?new THREE.Vector3(.4,.8,2):select.value==='queenhead'?new THREE.Vector3(-1.1,.85,2):new THREE.Vector3(1.35,.85,2)).normalize(),right=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),direction).normalize(),up=new THREE.Vector3().crossVectors(direction,right);
+  const direction=(select.value==='twinHearts'?new THREE.Vector3(.3,2.8,1.2):select.value==='nk-peak'||select.value==='taal'?new THREE.Vector3(1.2,2.2,1.8):select.value==='guishanIsland'?new THREE.Vector3(-1.3,.9,2):select.value==='gorge'?new THREE.Vector3(2,1.5,.25):select.value==='pingxiLanterns'?new THREE.Vector3(.4,.8,2):select.value==='queenhead'?new THREE.Vector3(-1.1,.85,2):new THREE.Vector3(1.35,.85,2)).normalize(),right=new THREE.Vector3().crossVectors(new THREE.Vector3(0,1,0),direction).normalize(),up=new THREE.Vector3().crossVectors(direction,right);
   const tan=Math.tan(THREE.MathUtils.degToRad(camera.fov/2));let distance=.1;
   for(const x of [reviewBounds.min.x,reviewBounds.max.x])for(const y of [reviewBounds.min.y,reviewBounds.max.y])for(const z of [reviewBounds.min.z,reviewBounds.max.z]) {
     const offset=new THREE.Vector3(x,y,z).sub(reviewCentre),toward=offset.dot(direction);
@@ -77,4 +78,4 @@ document.querySelector('#night').addEventListener('click',()=>{night=!night;setL
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;renderer.setSize(w,h);camera.aspect=w/h;camera.updateProjectionMatrix();if(current)reset();}new ResizeObserver(resize).observe(stage);resize();
 show(new URLSearchParams(location.search).get('model'));
 document.querySelector('#loading-review').remove();
-renderer.setAnimationLoop(()=>{controls.update();renderer.render(scene,camera);metrics.textContent=`${renderer.info.render.calls} draw calls\n${renderer.info.render.triangles.toLocaleString()} triangles`;});
+renderer.setAnimationLoop(()=>{current?.userData.update?.(performance.now()/1000);controls.update();renderer.render(scene,camera);metrics.textContent=`${renderer.info.render.calls} draw calls\n${renderer.info.render.triangles.toLocaleString()} triangles`;});

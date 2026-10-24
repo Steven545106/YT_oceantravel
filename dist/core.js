@@ -1,4 +1,4 @@
-import {TIME_LIGHTING,TIME_MODES,TIME_MODE_PHASE,TIME_MODE_NAMES,solarAngles} from './day-cycle.js';
+import {TIME_LIGHTING,TIME_MODES,TIME_MODE_PHASE,TIME_MODE_NAMES,solarAngles,advanceScenicTime} from './day-cycle.js';
 import {refineOceanSurface} from './ocean-surface.js';
 import { state } from './state.js';
 import { YACHT_PAINTS, buildYacht } from './yacht.js';
@@ -174,7 +174,7 @@ const weather = { mist: 0, rain: 0, label: 'CLEAR' };
 export let timeOfDay = 'sunrise';
 
 // Three fixed scenic times; the sun stays close to the correct horizon.
-export const dayCycle = { mode: 'sunrise', phase: TIME_MODE_PHASE.sunrise };
+export const dayCycle = { mode: 'sunrise', phase: TIME_MODE_PHASE.sunrise, elapsed:0 };
 export const TIME_MODE_LIST = TIME_MODES.map((id) => ({ id, name: TIME_MODE_NAMES[id] }));
 export function cycleTimeMode() { setTimeMode(TIME_MODES[(TIME_MODES.indexOf(dayCycle.mode) + 1) % TIME_MODES.length]); }
 export function setTimeMode(mode) {
@@ -182,6 +182,7 @@ export function setTimeMode(mode) {
   if (!TIME_MODES.includes(mode)) return;
   dayCycle.mode = mode;
   dayCycle.phase = TIME_MODE_PHASE[mode];
+  dayCycle.elapsed = 0;
   const hint = document.querySelector('#time-mode');
   if (hint) hint.textContent = TIME_MODE_NAMES[mode];
 }
@@ -194,6 +195,10 @@ export const lightning = { level: 0 };      // lightning flash strength, set by 
 const moonDirection = new THREE.Vector3(), lightDirection = new THREE.Vector3();
 let hemisphereBase = 1.4, ambientBase = .45;
 export function updateDayCycle(delta) {
+  if(advanceScenicTime(dayCycle,delta)){
+    const hint=document.querySelector('#time-mode');
+    if(hint)hint.textContent=TIME_MODE_NAMES[dayCycle.mode];
+  }
   const phase = dayCycle.phase;
   const {elevation,azimuth}=solarAngles(phase);
   sun.setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elevation), THREE.MathUtils.degToRad(azimuth));
@@ -678,7 +683,7 @@ export const lighthouseBeacons = [];
 export const startingWorldPosition = geoToWorld(ELUANBI_OFFSHORE_START);
 export const BOAT_WATERLINE_Y = .15;
 // Sailable area: Taiwan out to Japan's northern and eastern islands.
-export const WORLD_BOUNDS = REGIONS.worldBounds;   // sailable area, from the region registry (south edge ≈ 12°N for northern Philippines)
+export const WORLD_BOUNDS = REGIONS.worldBounds;   // sailable area, from the region registry (south edge ≈ 4°N, below Mindanao and the Sulu islands)
 boat.position.set(startingWorldPosition.x, BOAT_WATERLINE_Y, startingWorldPosition.y);
 // the bow points at the lighthouse (forward is (-sin y, -cos y) in x/z)
 const startingLighthouse = geoToWorld(ELUANBI_LIGHTHOUSE);

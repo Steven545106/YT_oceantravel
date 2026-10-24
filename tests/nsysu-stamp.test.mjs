@@ -10,7 +10,7 @@ test('NSYSU is a unique Taiwan landmark with search aliases and an individual st
   const campus=matches[0];assert.equal(campus.country,'台灣');assert.equal(campus.name,'國立中山大學');
   for(const alias of ['中山大學','國立高雄中山大學','NSYSU'])assert.ok(campus.aliases.includes(alias));
   assert.equal(campus.seal,'中山大學');assert.ok(campus.lat>22.62&&campus.lat<22.64);assert.ok(campus.lon>120.26&&campus.lon<120.28);
-  assert.equal(catalogue.filter(item=>item.country==='台灣').length,24);
+  assert.equal(catalogue.filter(item=>item.country==='台灣').length,25);
 });
 
 test('offshore arrival earns NSYSU once, saves it, and retains existing stamps',async()=>{
