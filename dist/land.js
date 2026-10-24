@@ -153,6 +153,9 @@ for (const tile of demTiles) {
     }
   }
 }
+// where heightmaps overlap (Taiwan's covers part of the Fujian coast), the sharper one wins
+const pixelsPerDegree = (tile) => (tile.width - 1) / (tile.lonMax - tile.lonMin);
+for (const bucket of tileBuckets.values()) bucket.sort((a, b) => pixelsPerDegree(b) - pixelsPerDegree(a));
 
 async function loadDemPixels(dem) {
   dem.pixels = (await fetchGrayPixels(dem.file)).pixels;

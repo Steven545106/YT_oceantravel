@@ -4,9 +4,10 @@ const count=value=>Number.isFinite(value)&&value>=0?value:0;
 const timestamps=value=>Object.fromEntries(Object.entries(object(value)).filter(([,time])=>Number.isFinite(time)&&time>0&&time<=8.64e15));
 const sectors=value=>[...new Set(Array.isArray(value)?value.filter(n=>Number.isInteger(n)&&n>=0&&n<16):[])];
 export function parseProgress(text){try{return JSON.parse(text??'null');}catch{return null;}}
-export function normalizeAchievements(value){
+// `sectorKeys`: one saved list of visited compass sectors per circuit (see the region registry)
+export function normalizeAchievements(value,sectorKeys=['sectors','japanSectors']){
   const saved=object(value),c=object(saved.counters);
-  return {sectors:sectors(saved.sectors),japanSectors:sectors(saved.japanSectors),unlocked:timestamps(saved.unlocked),counters:{nightSeconds:count(c.nightSeconds),whales:count(c.whales),arrivals:count(c.arrivals),landmarks:[...new Set(Array.isArray(c.landmarks)?c.landmarks.filter(n=>typeof n==='string'&&n.length):[])]}};
+  return {...Object.fromEntries(sectorKeys.map(key=>[key,sectors(saved[key])])),unlocked:timestamps(saved.unlocked),counters:{nightSeconds:count(c.nightSeconds),whales:count(c.whales),arrivals:count(c.arrivals),landmarks:[...new Set(Array.isArray(c.landmarks)?c.landmarks.filter(n=>typeof n==='string'&&n.length):[])]}};
 }
 export function normalizeJourney(value){
   const saved=object(value),result={};

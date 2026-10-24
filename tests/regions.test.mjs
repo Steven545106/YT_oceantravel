@@ -5,12 +5,13 @@ import {REGIONS,COUNTRIES,COUNTRY_ORDER,countryCode,countryName,exaggerationAt} 
 const data=(path)=>new URL(`../dist/Data/${path}`,import.meta.url);
 const readJson=async(path)=>JSON.parse(await readFile(data(path)));
 
-test('registry lists the five countries in display order with codes, names and places',async()=>{
-  assert.deepEqual(COUNTRIES.map(c=>c.code),['tw','jp','ph','kr','kp']);
-  assert.deepEqual(COUNTRY_ORDER,['台灣','日本','菲律賓','韓國','北韓']);
+test('registry lists the countries in unlock order with codes, names and places',async()=>{
+  assert.deepEqual(COUNTRIES.map(c=>c.code),['tw','jp','kr','kp','cn','hk','mo','ph']);
+  assert.deepEqual(COUNTRY_ORDER,['台灣','日本','韓國','北韓','中國','香港','澳門','菲律賓']);
+  assert.deepEqual(COUNTRIES.filter(c=>c.unlock?.includes('circumJapan')).map(c=>c.code),['kr','kp','cn','hk','mo']);
   assert.equal(countryCode('日本'),'jp');assert.equal(countryCode('kp'),'kp');assert.equal(countryName('ph'),'菲律賓');
-  assert.equal(exaggerationAt(23.5,121),1.9);assert.equal(exaggerationAt(35,139),1.15);
-  for(const country of COUNTRIES)assert.ok((await readJson(country.places)).places.length>100,country.code);
+  assert.equal(exaggerationAt(23.5,121),1.9);assert.equal(exaggerationAt(35,139),1.15);assert.equal(exaggerationAt(24.9,118.6),1.15);
+  for(const country of COUNTRIES)assert.ok((await readJson(country.places)).places.length>=(country.code==="mo"?20:100),country.code);
 });
 
 test('every coast chunk has a full-detail file matching its simplified outlines',async()=>{

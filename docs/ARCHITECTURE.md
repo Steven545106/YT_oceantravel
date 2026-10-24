@@ -1,6 +1,6 @@
 # YT Ocean Travel — 專案架構
 
-用 three.js 做的 3D 航海遊戲：在台灣、日本、菲律賓北部、韓國、北韓的真實海岸線與地形之間開船、看景點、集章。
+用 three.js 做的 3D 航海遊戲：在台灣、日本、韓國、北韓、中國東南沿海（福建、浙江、廣東）、香港、澳門、菲律賓北部的真實海岸線與地形之間開船、看景點、集章。中國、香港、澳門目前只有海岸、地形與地名，尚無景點與印章。
 純靜態網站，沒有後端；所有進度存在瀏覽器的 localStorage。
 
 ## 目錄
@@ -95,10 +95,10 @@ Relax/
 | 檔案 | 內容 | 來源 |
 |---|---|---|
 | `regions.json` | 區域登錄表（由 `scripts/build_regions.py` 產生，勿手改） | — |
-| `coast/base.json` | 全部島嶼的簡化海岸線（容許誤差 0.05 單位 ≈ 200 m），一開始就載入 | g0v、geoBoundaries 等公開邊界資料 |
-| `coast/<國碼>-<x>-<y>.json` | 完整海岸線，每國每 2°×2° 一塊（共 83 塊），靠近才下載 | 同上 |
+| `coast/base.json` | 全部島嶼的簡化海岸線（容許誤差 0.05 單位 ≈ 200 m），一開始就載入 | g0v、geoBoundaries 等公開邊界資料；中國、香港、澳門為 OpenStreetMap（ODbL） |
+| `coast/<國碼>-<x>-<y>.json` | 完整海岸線，每國每 2°×2° 一塊（共 101 塊），靠近才下載 | 同上 |
 | `dem/overview.png` | 總覽地形圖（每度 40 像素），一開始就載入 | AWS Terrain Tiles |
-| `dem/<來源>-<i>-<j>.webp` | 完整解析度地形圖塊，每 2°×2° 一塊（全海面的圖塊不輸出，共 100 塊），靠近才下載 | 同上 |
+| `dem/<來源>-<i>-<j>.webp` | 完整解析度地形圖塊，每 2°×2° 一塊（全海面的圖塊不輸出，共 139 塊），靠近才下載 | 同上 |
 | `places/<國碼>.json` | 各國地名（城市、港口、島嶼、燈塔…） | GeoNames |
 | `nav/sea-grid.png` | 遠洋粗格網（每格 2 單位 ≈ 8 km）：255 陸地、k 為第 k 國 12 km 屏障海域、0 開闊海面 | 由海岸線產生 |
 | `seas.json` | 海域範圍與名稱 | Natural Earth |
@@ -114,6 +114,12 @@ Relax/
 <venv>/bin/python scripts/build_regions.py
 ```
 新增國家時，在 `regions.source.json` 加一筆國家（代碼、名稱、標籤、別名、海岸線檔、地形網格間距），必要時加地形圖來源，不需要改遊戲程式。國家相關的解鎖條件、成就仍寫在 `achievements.js`。
+
+**新增國家的原始資料（以中國沿海為例）：** 三支腳本把下載的資料轉成 `scripts/source-data/` 的格式，下載檔放在專案外：
+- `scripts/build_coast.py`：從 OpenStreetMap 陸地多邊形（`land-polygons-split-4326.zip`，約 930 MB）切出福建、浙江、廣東（geoBoundaries 省界外擴 0.3° 決定範圍）及香港、澳門（OSM 行政界線，`scripts/source-data/boundaries/`）的海岸線；與台灣海岸重疊的島（金門、馬祖）不收。
+- `scripts/build_dem.py`：下載 AWS Terrain Tiles（Terrarium）重投影成經緯度格網高度圖（中國沿海 z8、每度 200 像素）。
+- `scripts/build_places.py`：從 GeoNames 國家檔挑出陸上與近海地名，中文名轉為繁體。
+三支都需要 shapely、pyshp、numpy、Pillow、opencc-python-reimplemented。產生後再跑 `build_regions.py`。中國範圍只到三省邊界，內陸邊界以外沒有陸地（戰鬥機飛到內陸會看到地面結束）。台灣的地形誇張倍率（1.9）只套用東經 119.95° 以東，避免福建沿岸被拉高；澎湖、金門、馬祖改用一般倍率。
 
 **執行時（`land.js`）：**
 - `landIslands` 每座島一格：平常是簡化海岸線；船或戰鬥機 170 單位內的區塊換成完整海岸線，離開 230 單位後換回。碰撞、離岸距離、導航、地圖都讀同一份陣列，換線時 `landVersion` 加一，導航規劃器會用新海岸線重建。
@@ -132,8 +138,10 @@ Relax/
 
 - **一開始：** 只有台灣。
 - **環台一圈：** 解鎖日本。
-- **環日本一圈：** 解鎖韓國、北韓。
+- **環日本一圈：** 解鎖韓國、北韓、中國、香港、澳門。
 - **集滿韓國與北韓所有印章（韓國達人＋北韓達人）：** 解鎖菲律賓。
+
+解鎖條件寫在 `scripts/source-data/regions.source.json`：每國的 `unlock` 列出需要的成就 id（環島 `circuits` 的 id，或 `master:<國名>` 代表集滿該國印章），`arrival` 是解鎖後抵達海岸的成就。`circuits` 定義環島中心點、北緯下限（日本不算琉球）與存檔欄位（沿用舊存檔的 `sectors`、`japanSectors`）。`achievements.js` 依此產生成就清單、上鎖訊息（例如「日本尚未解鎖：先完成「環台一圈」」）、解鎖橫幅與成就面板的解鎖進度。未解鎖國家仍有 12 km 屏障；中國上鎖期間，金門、馬祖周邊因離對岸太近，自動導航到不了。
 
 存檔都在 localStorage，多個分頁同時開也會自動合併，不會互相覆蓋：
 

@@ -1,17 +1,20 @@
 import { isWithinStampReach } from './stamp-reach.js';
 import { normalizeAchievements, parseProgress } from './progress-data.js';
-// Achievements: progress is saved in localStorage. Sailing all the way round Taiwan (every one of 16 compass sectors
-// around the island visited within 60 km of its coast) unlocks Japan; sailing round Japan's main islands the same way
-// then unlocks South and North Korea; collecting every Korean and North Korean stamp (both master badges) unlocks the
-// Philippines. Until a country is unlocked, boats are turned back at its waters.
+// Achievements and the country unlock chain, both driven by the region registry (Data/regions.json):
+// - circuits: sail round a country (every one of 16 compass sectors round its centre visited within 60 km of its coast);
+// - each country's `unlock` lists the achievement ids it needs (circuits, or master badges "master:<name>");
+// - each country's `arrival` is a "reach its coast" achievement once it is unlocked.
+// Progress is saved in localStorage. Until a country is unlocked, boats are turned back at its waters.
 import { geoToWorld, worldToGeo } from './geo.js';
-import { countryCode } from './regions.js';
+import { COUNTRIES, REGIONS, countryByCode, countryCode, countryName } from './regions.js';
 const STORAGE_KEY = 'relax-achievements-v1';
 const SECTORS = 16;
 const COAST_RANGE_KM = 60;
-export const JAPAN_BARRIER_KM = 12;     // how close to Japan's shore a boat may get while Japan is locked
+export const JAPAN_BARRIER_KM = 12;     // how close to a locked country's shore a boat may get
 
-const blank = () => ({ sectors: [], japanSectors: [], unlocked: {}, counters: { nightSeconds: 0, whales: 0, arrivals: 0, landmarks: [] } });
+const CIRCUITS = REGIONS.circuits.map((circuit) => ({ ...circuit, origin: geoToWorld({ latitude: circuit.centre[0], longitude: circuit.centre[1] }) }));
+const SECTOR_KEYS = CIRCUITS.map((circuit) => circuit.saveKey);
+const blank = () => ({ ...Object.fromEntries(SECTOR_KEYS.map((key) => [key, []])), unlocked: {}, counters: { nightSeconds: 0, whales: 0, arrivals: 0, landmarks: [] } });
 let data = blank();
 let notify = () => {};
 let circumnavigate = () => {};
@@ -19,7 +22,7 @@ let ui = null;
 
 try {
   const saved = parseProgress(localStorage.getItem(STORAGE_KEY));
-  if (saved) data = normalizeAchievements(saved);
+  if (saved) data = normalizeAchievements(saved, SECTOR_KEYS);
 } catch { /* private mode: progress simply isn't saved */ }
 
 let saveTimer = 0;
@@ -27,9 +30,8 @@ let saveTimer = 0;
 // a plain overwrite would wipe achievements earned in the other tab. Progress only ever grows.
 function merge(stored) {
   if (!stored) return;
-  stored = normalizeAchievements(stored);
-  data.sectors = [...new Set([...data.sectors, ...(stored.sectors ?? [])])];
-  data.japanSectors = [...new Set([...(data.japanSectors ?? []), ...(stored.japanSectors ?? [])])];
+  stored = normalizeAchievements(stored, SECTOR_KEYS);
+  for (const key of SECTOR_KEYS) data[key] = [...new Set([...data[key], ...stored[key]])];
   for (const [id, time] of Object.entries(stored.unlocked ?? {})) data.unlocked[id] = Math.min(data.unlocked[id] ?? Infinity, time);
   const c = data.counters, o = stored.counters ?? {};
   c.nightSeconds = Math.max(c.nightSeconds, o.nightSeconds ?? 0);
@@ -42,15 +44,38 @@ const save = () => {
 };
 addEventListener('storage', (event) => { if (event.key === STORAGE_KEY) { try { merge(parseProgress(event.newValue)); renderPanel(); } catch { /* ignore */ } } });
 
+// --- Unlock rules ------------------------------------------------------------
+const requirementsOf = (code) => countryByCode(code)?.unlock ?? [];
+const allMet = (ids) => ids.every((id) => !!data.unlocked[id]);
+// country (as a name or a land code) -> unlocked?, and the message shown when it is still locked
+export const isCountryUnlocked = (country) => allMet(requirementsOf(countryCode(country)));
+const masterCountry = (id) => id.startsWith('master:') ? id.slice(7) : null;
+// "完成「環台一圈」", "集滿韓國與北韓的所有印章", joined when a country needs both kinds
+function needsText(ids) {
+  const parts = ids.filter((id) => !masterCountry(id)).map((id) => `完成「${CIRCUITS.find((circuit) => circuit.id === id)?.title ?? id}」`);
+  const masters = ids.map(masterCountry).filter(Boolean);
+  if (masters.length) parts.push(`集滿${masters.join('與')}的所有印章`);
+  return parts.join('，並');
+}
+export const lockMessage = (country) => `${countryName(countryCode(country))}尚未解鎖：先${needsText(requirementsOf(countryCode(country)))}`;
+// the countries an achievement opens, by display name
+const opensCountries = (id) => COUNTRIES.filter((country) => (country.unlock ?? []).includes(id)).map((country) => country.name);
+
+const sameUnlock = (a, b) => a.length === b.length && a.every((id) => b.includes(id));
+const circuitDefinition = (circuit) => {
+  const names = opensCountries(circuit.id).join('、');
+  return { id: circuit.id, title: circuit.title, country: circuit.country, target: SECTORS, progress: () => data[circuit.saveKey].length, reward: names && `解鎖${names}`,
+    description: `沿著${circuit.area}海岸航行一整圈：繞行 16 個方位，每個方位都要靠近海岸 60 公里內。${names ? `完成後解鎖${names}。` : ''}` };
+};
 const DEFINITIONS = [
-  { id: 'circumTaiwan', title: '環台一圈', description: '沿著台灣海岸航行一整圈（繞行 16 個方位，每個方位都要靠近海岸 60 公里內）。完成後解鎖日本。', target: SECTORS, progress: () => data.sectors.length, reward: '解鎖日本' },
+  ...CIRCUITS.slice(0, 1).map(circuitDefinition),
   { id: 'firstWhale', title: '遇見鯨魚', description: '在海上遇見一隻鯨魚。', target: 1, progress: () => Math.min(1, data.counters.whales) },
   { id: 'nightSail', title: '夜航者', description: '在夜晚駕船航行累計 2 分鐘。', target: 120, progress: () => Math.min(120, Math.floor(data.counters.nightSeconds)), format: (v, t) => `${v} / ${t} 秒` },
   { id: 'autopilot', title: '自動導航抵達', description: '使用自動導航成功抵達一個目的地。', target: 1, progress: () => Math.min(1, data.counters.arrivals) },
   { id: 'sightseer', title: '景點達人', description: '航行到 8 個不同景點附近（內陸景點則是離它最近的海岸）。', target: 8, progress: () => Math.min(8, data.counters.landmarks.length) },
-  { id: 'circumJapan', title: '環日本一圈', description: '解鎖日本後，沿著日本本土（北海道、本州、四國、九州）航行一整圈：繞行 16 個方位，每個方位都要靠近海岸 60 公里內。完成後解鎖韓國與北韓。', target: SECTORS, progress: () => data.japanSectors.length, reward: '解鎖韓國、北韓', requires: 'circumTaiwan' },
-  { id: 'philippinesArrival', title: '踏上菲律賓', description: '解鎖菲律賓後，抵達菲律賓海岸 20 公里內。', target: 1, progress: () => (data.unlocked.philippinesArrival ? 1 : 0), locked: () => !isPhilippinesUnlocked(), lockedText: '先集滿韓國與北韓的所有印章才會開放。' },
-  { id: 'japanArrival', title: '踏上日本', description: '解鎖日本後，抵達日本海岸 20 公里內。', target: 1, progress: () => (data.unlocked.japanArrival ? 1 : 0), requires: 'circumTaiwan' }
+  ...CIRCUITS.slice(1).map(circuitDefinition),
+  ...COUNTRIES.filter((country) => country.arrival).map((country) => ({ id: country.arrival, title: `踏上${country.name}`, country: country.code, arrival: true,
+    description: `解鎖${country.name}後，抵達${country.name}海岸 20 公里內。`, target: 1, progress: () => (data.unlocked[country.arrival] ? 1 : 0) }))
 ];
 
 // Country master badges ("台灣達人" …), registered by the stamp book once it knows how many stamps each country has.
@@ -58,36 +83,25 @@ export function registerMasterBadges(countries, progress) {
   for (const { country, total } of countries) {
     const id = `master:${country}`;
     if (DEFINITIONS.some((entry) => entry.id === id)) continue;
-    DEFINITIONS.push({ id, title: `${country}達人`, description: `集滿${country}所有景點的印章（共 ${total} 枚）。`, target: total, progress: () => progress(country) });
+    DEFINITIONS.push({ id, title: `${country}達人`, country: countryCode(country), target: total, progress: () => progress(country),
+      description: `集滿${country}所有景點的印章（共 ${total} 枚）。` });
   }
   check();
   renderPanel();
 }
-export const isJapanUnlocked = () => !!data.unlocked.circumTaiwan;
-export const isKoreaUnlocked = () => !!data.unlocked.circumJapan;
-// the Philippines opens once both Korean master badges ("韓國達人", "北韓達人") are earned
-const PHILIPPINES_KEYS = ['master:韓國', 'master:北韓'];
-export const isPhilippinesUnlocked = () => PHILIPPINES_KEYS.every((id) => !!data.unlocked[id]);
-const isLocked = (definition) => definition.locked ? definition.locked() : !!definition.requires && !data.unlocked[definition.requires];
-// country (as a name or a land code) -> unlocked?, and the message shown when it is still locked
-export function isCountryUnlocked(country) {
-  const code = countryCode(country);
-  return code === 'jp' ? isJapanUnlocked() : code === 'ph' ? isPhilippinesUnlocked() : code === 'kr' || code === 'kp' ? isKoreaUnlocked() : true;
-}
-export function lockMessage(country) {
-  const code = countryCode(country);
-  return code === 'jp' ? '日本尚未解鎖：先完成「環台一圈」' : code === 'ph' ? '菲律賓尚未解鎖：先集滿韓國與北韓的所有印章' : '韓國、北韓尚未解鎖：先完成「環日本一圈」';
-}
-const JAPAN_CENTRE = geoToWorld({ latitude: 36.2, longitude: 137.8 });
+const isLocked = (definition) => !!definition.country && !isCountryUnlocked(definition.country);
 
 function unlock(id) {
   if (data.unlocked[id]) return;
+  const before = COUNTRIES.filter((country) => isCountryUnlocked(country.code)).length;
   data.unlocked[id] = Date.now();
   const definition = DEFINITIONS.find((entry) => entry.id === id);
   save();
-  const big = PHILIPPINES_KEYS.includes(id) && isPhilippinesUnlocked() ? '韓國、北韓印章全部集滿！菲律賓已解鎖'
-    : { circumTaiwan: '環台一圈完成！日本已解鎖', circumJapan: '環日本一圈完成！韓國、北韓已解鎖' }[id];
-  notify(big ?? `成就解鎖：${definition.title}`, big ? 'big' : 'normal');
+  // a big banner when this completes some country's unlock requirements
+  const opened = COUNTRIES.filter((country) => (country.unlock ?? []).includes(id) && isCountryUnlocked(country.code)).map((country) => country.name);
+  const big = opened.length && COUNTRIES.filter((country) => isCountryUnlocked(country.code)).length > before
+    ? `${definition?.title ?? id}${CIRCUITS.some((circuit) => circuit.id === id) ? '完成' : ''}！${opened.join('、')}已解鎖` : null;
+  notify(big ?? `成就解鎖：${definition?.title ?? id}`, big ? 'big' : 'normal');
   renderPanel();
 }
 
@@ -100,9 +114,8 @@ export function recordEvent(name) {
 
 function check() {
   for (const definition of DEFINITIONS) {
-    if (data.unlocked[definition.id]) continue;
-    if (isLocked(definition)) continue;
-    if (definition.id !== 'japanArrival' && definition.id !== 'philippinesArrival' && definition.progress() >= definition.target) unlock(definition.id);
+    if (data.unlocked[definition.id] || definition.arrival || isLocked(definition)) continue;
+    if (definition.progress() >= definition.target) unlock(definition.id);
   }
 }
 
@@ -113,37 +126,52 @@ export function trackAchievements({ delta, x, z, nearestLand, night, speed, land
   if (night && speed > .05) data.counters.nightSeconds += delta;
   if (sinceCheck < .5) return;
   sinceCheck = 0;
-  // sector round Taiwan: bearing from the island's centre (the world origin), clockwise from north
-  if (nearestLand.country === 'tw' && nearestLand.km < COAST_RANGE_KM && !data.unlocked.circumTaiwan) {
-    const angle = (Math.atan2(x, -z) + Math.PI * 2) % (Math.PI * 2);
+  // circuit sectors: bearing from the circuit's centre, clockwise from north
+  for (const circuit of CIRCUITS) {
+    if (data.unlocked[circuit.id] || !isCountryUnlocked(circuit.country) || nearestLand.country !== circuit.country || nearestLand.km >= COAST_RANGE_KM) continue;
+    if (circuit.minLatitude !== undefined && worldToGeo(x, z).latitude <= circuit.minLatitude) continue;   // e.g. the Ryukyus don't count for Japan
+    const angle = (Math.atan2(x - circuit.origin.x, -(z - circuit.origin.y)) + Math.PI * 2) % (Math.PI * 2);
     const sector = Math.floor(angle / (Math.PI * 2 / SECTORS)) % SECTORS;
-    if (!data.sectors.includes(sector)) { data.sectors.push(sector); renderPanel(); }
-  }
-  // sector round Japan's main islands (Okinawa and the Ryukyus, far to the south, don't count)
-  if (isJapanUnlocked() && !data.unlocked.circumJapan && nearestLand.country === 'jp' && nearestLand.km < COAST_RANGE_KM && worldToGeo(x, z).latitude > 30.8) {
-    const angle = (Math.atan2(x - JAPAN_CENTRE.x, -(z - JAPAN_CENTRE.y)) + Math.PI * 2) % (Math.PI * 2);
-    const sector = Math.floor(angle / (Math.PI * 2 / SECTORS)) % SECTORS;
-    if (!data.japanSectors.includes(sector)) { data.japanSectors.push(sector); renderPanel(); }
+    if (!data[circuit.saveKey].includes(sector)) { data[circuit.saveKey].push(sector); renderPanel(); }
   }
   for (const item of landmarks ?? []) {
     if (data.counters.landmarks.includes(item.name)) continue;
     if (isCountryUnlocked(item.country) && isWithinStampReach(item,x,z)) { data.counters.landmarks.push(item.name); renderPanel(); }
   }
-  if (isJapanUnlocked() && !data.unlocked.japanArrival && nearestLand.country === 'jp' && nearestLand.km < 20) unlock('japanArrival');
-  if (isPhilippinesUnlocked() && !data.unlocked.philippinesArrival && nearestLand.country === 'ph' && nearestLand.km < 20) unlock('philippinesArrival');
+  for (const country of COUNTRIES) {
+    if (country.arrival && !data.unlocked[country.arrival] && isCountryUnlocked(country.code) && nearestLand.country === country.code && nearestLand.km < 20) unlock(country.arrival);
+  }
   check();
   if ((saveTimer += .5) >= 5) { saveTimer = 0; save(); }
 }
 
+// "日本：已解鎖 · 韓國、北韓…：尚未解鎖（環日本一圈進度 3 / 16）": one entry per distinct unlock requirement
+function unlockStatusText() {
+  const groups = [];
+  for (const country of COUNTRIES) {
+    const ids = country.unlock ?? [];
+    if (!ids.length) continue;
+    const group = groups.find((entry) => sameUnlock(entry.ids, ids));
+    if (group) group.names.push(country.name); else groups.push({ ids, names: [country.name] });
+  }
+  return groups.map(({ ids, names }) => {
+    if (allMet(ids)) return `${names.join('、')}：已解鎖`;
+    const progress = ids.filter((id) => !data.unlocked[id]).map((id) => {
+      const circuit = CIRCUITS.find((entry) => entry.id === id);
+      if (circuit) return `${circuit.title}進度 ${data[circuit.saveKey].length} / ${SECTORS}`;
+      return null;
+    }).filter(Boolean);
+    const masters = ids.map((id) => DEFINITIONS.find((entry) => entry.id === id && masterCountry(id))).filter(Boolean);
+    if (masters.length) progress.push(`${masters.map((entry) => masterCountry(entry.id)).join('、')}印章 ${masters.reduce((sum, entry) => sum + Math.min(entry.progress(), entry.target), 0)} / ${masters.reduce((sum, entry) => sum + entry.target, 0)}`);
+    return `${names.join('、')}：尚未解鎖${progress.length ? `（${progress.join('；')}）` : ''}`;
+  });
+}
+
 function renderPanel() {
   if (!ui) return;
-  const japanText = isJapanUnlocked() ? '日本：已解鎖' : `日本：尚未解鎖（環台進度 ${data.sectors.length} / ${SECTORS}）`;
-  const koreaText = isKoreaUnlocked() ? '韓國、北韓：已解鎖' : `韓國、北韓：尚未解鎖（環日本進度 ${data.japanSectors.length} / ${SECTORS}）`;
-  const stamps = PHILIPPINES_KEYS.map((id) => DEFINITIONS.find((entry) => entry.id === id)).filter(Boolean);
-  const stampText = stamps.length ? `（韓國、北韓印章 ${stamps.reduce((sum, entry) => sum + Math.min(entry.progress(), entry.target), 0)} / ${stamps.reduce((sum, entry) => sum + entry.target, 0)}）` : '';
-  const philippinesText = isPhilippinesUnlocked() ? '菲律賓：已解鎖' : `菲律賓：尚未解鎖${stampText}`;
-  ui.japan.textContent = `${japanText}　·　${koreaText}　·　${philippinesText}`;
-  ui.japan.dataset.state = isJapanUnlocked() && isKoreaUnlocked() && isPhilippinesUnlocked() ? 'open' : 'locked';
+  const status = unlockStatusText();
+  ui.japan.textContent = status.join('　·　');
+  ui.japan.dataset.state = COUNTRIES.every((country) => isCountryUnlocked(country.code)) ? 'open' : 'locked';
   const circumReady = !!data.unlocked.circumTaiwan;
   ui.circum.hidden = !circumReady;
   ui.navCircum.hidden = !circumReady;
@@ -164,7 +192,7 @@ function renderPanel() {
     const title = document.createElement('strong');
     title.textContent = definition.title + (definition.reward ? `　· ${definition.reward}` : '');
     const text = document.createElement('p');
-    text.textContent = locked ? definition.lockedText ?? '先完成「環台一圈」才會開放。' : definition.description;
+    text.textContent = locked ? `先${needsText(requirementsOf(definition.country))}才會開放。` : definition.description;
     const bar = document.createElement('div');
     bar.className = 'achievement-bar';
     const fill = document.createElement('span');
