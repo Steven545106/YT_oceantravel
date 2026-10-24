@@ -17,7 +17,7 @@ from shapely.geometry import shape, box, Polygon
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PATH = os.path.join(ROOT, 'dist', 'Data', 'seas.json')
-CLIP = (85.0, -15.0, 165.0, 56.0)   # lon0, lat0, lon1, lat1 of the map's seas
+CLIP = (25.0, -15.0, 165.0, 56.0)   # lon0, lat0, lon1, lat1 of the map's seas
 SEAS = [
     {'en': 'South China Sea', 'zh': '南海', 'kind': 'sea', 'color': '#fc8181', 'priority': 95, 'maxHeight': None, 'label': [19.0, 116.5]},
     {'en': 'Gulf of Tonkin', 'zh': '北部灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 60, 'maxHeight': 2200, 'label': [20.3, 108.3]},
@@ -41,6 +41,28 @@ SEAS = [
     {'en': 'Bali Sea', 'zh': '峇里海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 60, 'maxHeight': 1600},
     {'en': 'Selat Bali', 'zh': '峇里海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 45, 'maxHeight': 700},
     {'en': 'Gulf of Tomini', 'zh': '托米尼灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 55, 'maxHeight': 1400},
+    {'en': 'Arabian Sea', 'zh': '阿拉伯海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 90, 'maxHeight': None},
+    {'en': 'Laccadive Sea', 'zh': '拉克代夫海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 70, 'maxHeight': 2600},
+    {'en': 'Gulf of Mannar', 'zh': '馬納灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 50, 'maxHeight': 1200},
+    {'en': 'Palk Strait', 'zh': '保克海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 45, 'maxHeight': 900},
+    {'en': 'Gulf of Kutch', 'zh': '卡奇灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 45, 'maxHeight': 900},
+    {'en': 'Gulf of Khambhät', 'zh': '坎貝灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 45, 'maxHeight': 900},
+    {'en': 'Persian Gulf', 'zh': '波斯灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 85, 'maxHeight': 2600},
+    {'en': 'Gulf of Oman', 'zh': '阿曼灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 70, 'maxHeight': 2200},
+    {'en': 'Gulf of Masira', 'zh': '馬西拉灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 45, 'maxHeight': 900},
+    {'en': 'Red Sea', 'zh': '紅海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 85, 'maxHeight': 2600},
+    {'en': 'Gulf of Aden', 'zh': '亞丁灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 75, 'maxHeight': 2200},
+    {'en': 'Bab el Mandeb', 'zh': '曼德海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 50, 'maxHeight': 900},
+    {'en': 'Gulf of Suez', 'zh': '蘇伊士灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 50, 'maxHeight': 1200},
+    {'en': 'Gulf of Aqaba', 'zh': '亞喀巴灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 50, 'maxHeight': 1200},
+    {'en': 'Mediterranean Sea', 'zh': '地中海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 90, 'maxHeight': None},
+    {'en': 'Aegean Sea', 'zh': '愛琴海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 75, 'maxHeight': 2200},
+    {'en': 'Sea of Crete', 'zh': '克里特海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 55, 'maxHeight': 1600},
+    {'en': 'Sea of Marmara', 'zh': '馬摩拉海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 55, 'maxHeight': 1200},
+    {'en': 'Bosporus', 'zh': '伊斯坦堡海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 45, 'maxHeight': 600},
+    {'en': 'Dardanelles', 'zh': '達達尼爾海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 45, 'maxHeight': 700},
+    {'en': 'Black Sea', 'zh': '黑海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 90, 'maxHeight': None},
+    {'en': 'Caspian Sea', 'zh': '裏海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 85, 'maxHeight': None},
     {'en': 'Philippine Sea', 'zh': '菲律賓海', 'kind': 'sea', 'color': '#b794f4', 'priority': 95, 'maxHeight': None, 'label': [24.0, 135.0]},
     {'en': 'Sulu Sea', 'zh': '蘇祿海', 'kind': 'sea', 'color': '#f6ad55', 'priority': 80, 'maxHeight': 2600, 'label': [8.8, 120.2]},
     {'en': 'Celebes Sea', 'zh': '西里伯斯海', 'kind': 'sea', 'color': '#f6ad55', 'priority': 80, 'maxHeight': 2600, 'label': [5.5, 122.5]},

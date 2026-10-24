@@ -6,12 +6,15 @@ const data=(path)=>new URL(`../dist/Data/${path}`,import.meta.url);
 const readJson=async(path)=>JSON.parse(await readFile(data(path)));
 
 test('registry lists the countries in unlock order with codes, names and places',async()=>{
-  assert.deepEqual(COUNTRIES.map(c=>c.code),['tw','jp','kr','kp','cn','hk','mo','vn','ph','bn','my','id','sg','tl','th','kh','la','mm']);
-  assert.deepEqual(COUNTRY_ORDER,['台灣','日本','韓國','北韓','中國','香港','澳門','越南','菲律賓','汶萊','馬來西亞','印尼','新加坡','東帝汶','泰國','柬埔寨','寮國','緬甸']);
+  // hand-made East Asian countries first, then the regions built by build_world.py in the order they were added
+  assert.deepEqual(COUNTRIES.map(c=>c.code).slice(0,18),['tw','jp','kr','kp','cn','hk','mo','vn','ph','bn','my','id','sg','tl','th','kh','la','mm']);
+  assert.equal(new Set(COUNTRIES.map(c=>c.code)).size,COUNTRIES.length);
+  for(const code of ['in','lk','mv','ir','sa','tr','eg'])assert.ok(COUNTRIES.some(c=>c.code===code),code);
+  assert.deepEqual(COUNTRY_ORDER.slice(0,18),['台灣','日本','韓國','北韓','中國','香港','澳門','越南','菲律賓','汶萊','馬來西亞','印尼','新加坡','東帝汶','泰國','柬埔寨','寮國','緬甸']);
   assert.deepEqual(COUNTRIES.filter(c=>c.unlock?.includes('circumJapan')).map(c=>c.code),['kr','kp','cn','hk','mo','vn']);
   assert.equal(countryCode('日本'),'jp');assert.equal(countryCode('kp'),'kp');assert.equal(countryName('ph'),'菲律賓');
   assert.equal(exaggerationAt(23.5,121),1.9);assert.equal(exaggerationAt(35,139),1.15);assert.equal(exaggerationAt(24.9,118.6),1.15);
-  for(const country of COUNTRIES)assert.ok((await readJson(country.places)).places.length>=(["mo","bn"].includes(country.code)?20:100),country.code);
+  for(const country of COUNTRIES)assert.ok((await readJson(country.places)).places.length>=(["mo","bn","ps","bt","bh","il","lb","qa","nr"].includes(country.code)?20:100),country.code);
 });
 
 test('every coast chunk has a full-detail file, and the outline layer is a much lighter subset',async()=>{

@@ -2,11 +2,105 @@
   "description": "Regions built by scripts/build_world.py. area: lon0, lat0, lon1, lat1 searched; countries: ISO 3166-1 alpha-2 codes (Natural Earth ISO_A2_EH) whose land is kept, in the order they win where zones meet; exclude: coast files of countries drawn by other means, whose land is cut away; dem: heightmap built for the area (tile zoom, pixels per degree); unlock: what the new countries in the registry need for now.",
   "regions": {
     "southeast-asia": {
-      "area": [92.0, -11.5, 141.05, 28.6],
-      "countries": ["SG", "BN", "TL", "MY", "TH", "KH", "LA", "MM", "ID"],
-      "exclude": ["vietnam_coast.json", "china_coast.json", "philippines_coast.json", "taiwan_coast.json", "hong_kong_coast.json", "macau_coast.json"],
-      "dem": { "zoom": 8, "pixelsPerDegree": 200 },
-      "unlock": ["master:韓國", "master:北韓"]
+      "area": [
+        92.0,
+        -11.5,
+        141.05,
+        28.6
+      ],
+      "countries": [
+        "SG",
+        "BN",
+        "TL",
+        "MY",
+        "TH",
+        "KH",
+        "LA",
+        "MM",
+        "ID"
+      ],
+      "exclude": [
+        "vietnam_coast.json",
+        "china_coast.json",
+        "philippines_coast.json",
+        "taiwan_coast.json",
+        "hong_kong_coast.json",
+        "macau_coast.json"
+      ],
+      "dem": {
+        "zoom": 8,
+        "pixelsPerDegree": 200
+      },
+      "unlock": [
+        "master:韓國",
+        "master:北韓"
+      ]
+    },
+    "south-asia": {
+      "area": [
+        60.0,
+        -1.0,
+        97.5,
+        37.2
+      ],
+      "countries": [
+        "IN",
+        "PK",
+        "BD",
+        "LK",
+        "MV",
+        "NP",
+        "BT",
+        "AF"
+      ],
+      "exclude": [
+        "myanmar_coast.json",
+        "china_coast.json"
+      ],
+      "dem": {
+        "zoom": 8,
+        "pixelsPerDegree": 200
+      },
+      "unlock": [
+        "master:韓國",
+        "master:北韓"
+      ]
+    },
+    "middle-east": {
+      "area": [
+        25.0,
+        12.0,
+        63.5,
+        42.5
+      ],
+      "countries": [
+        "TR",
+        "CY",
+        "SY",
+        "LB",
+        "IL",
+        "PS",
+        "JO",
+        "EG",
+        "SA",
+        "YE",
+        "OM",
+        "AE",
+        "QA",
+        "BH",
+        "KW",
+        "IQ",
+        "IR"
+      ],
+      "exclude": [],
+      "dem": {
+        "zoom": 8,
+        "pixelsPerDegree": 200
+      },
+      "unlock": [
+        "master:韓國",
+        "master:北韓"
+      ]
     }
   }
 }
