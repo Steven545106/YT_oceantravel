@@ -8,7 +8,7 @@ import { scheduleNavigationRetry } from './nav.js';
 import { updateLandmarkHud } from './landmark-hud.js';
 import {setStampGuidanceEnabled} from './stamp-guidance.js';
 import { sceneryObstacles, movementBlocked } from './nav-obstacles.js';
-import { movementAxes, isMovementKey, isTextControl } from './controls.js';
+import { keyOf, movementAxes, isMovementKey, isTextControl } from './controls.js';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createWhaleEvent } from './whale.js';
@@ -276,8 +276,8 @@ addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && journeyOpen()) { setJourneyOpen(false); return; }
   if (event.key === 'Escape' && achievementsOpen()) { setAchievementsOpen(false); return; }
   if (event.key === 'Escape' && worldMapOpen) { setWorldMapOpen(false); return; }
-  const key = event.key.toLowerCase();
-  if(currentVehicleType()==='fighter'&&[' ','shift','arrowup','arrowdown'].includes(key))event.preventDefault();
+  const key = keyOf(event);
+  if(currentVehicleType()==='fighter'&&['arrowup','arrowdown'].includes(key))event.preventDefault();
   if(currentVehicleType()==='fighter'&&['f','l'].includes(key)){
     if(!event.repeat)flightHoldInput.press(`key:${key}`,key==='f'?'takeoff':'land');
     return;
@@ -334,7 +334,7 @@ addEventListener('keydown', (event) => {
   if (key === 'm' && !event.repeat) { const muted = whaleSound.toggle(); const hint = document.querySelector('#sound-state'); if (hint) hint.textContent = muted ? '靜音' : '開'; }
 });
 addEventListener('keyup', (event) => {
-  const key=event.key.toLowerCase();
+  const key=keyOf(event);
   if(currentVehicleType()==='fighter'&&['f','l'].includes(key)){
     const result=flightHoldInput.release(`key:${key}`);
     if(result?.kind==='tap')flightCommand(result.command);
@@ -451,7 +451,7 @@ function animate() {
     if(climbHold&&aircraft.mode==='grounded')flightCommand('takeoff');
     if(climbHold&&aircraft.mode==='landing')aircraft.mode='hover';
     if(descendHold&&['takingOff','landing'].includes(aircraft.mode))aircraft.mode='hover';
-    flightStep(aircraft,{...axes,climb:keys.has(' ')||climbHold,descend:keys.has('shift')||descendHold},flightEnvironment,delta);
+    flightStep(aircraft,{...axes,climb:climbHold,descend:descendHold},flightEnvironment,delta);
     flightAcceleration=Math.max(0,(aircraft.speed-previousSpeed)/Math.max(delta,1e-4));
     flightKick=Math.max(flightKick*Math.exp(-delta*3.8),Math.min(1,flightAcceleration/4));
     nearestLand=distanceToLand(aircraft.x,aircraft.z);

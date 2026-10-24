@@ -33,3 +33,22 @@ test('boat yaw and roll do not resize the dolphins or their jump height',async()
   boat.rotation.set(.2,Math.PI/4,.12);boat.position.set(20,.3,-40);
   assert.ok(Math.abs(shipLocalLength(boat,ship)-original)<1e-6);
 });
+test('keys are read by their physical position, so a Chinese input method cannot swallow them',async()=>{
+  const {keyOf}=await import('../dist/controls.js');
+  assert.equal(keyOf({key:'ㄑ',code:'KeyF'}),'f');
+  assert.equal(keyOf({key:'Process',code:'KeyW'}),'w');
+  assert.equal(keyOf({key:'F',code:'KeyF'}),'f');
+  assert.equal(keyOf({key:'ArrowUp',code:'ArrowUp'}),'arrowup');
+  assert.equal(keyOf({key:' ',code:'Space'}),' ');
+  assert.equal(keyOf({key:'Shift',code:'ShiftLeft'}),'shift');
+  assert.equal(keyOf({key:'3',code:'Digit3'}),'3');
+});
+test('a new press of the climb key restarts the hold even if its last release was missed',async()=>{
+  const {createFlightHoldInput,FLIGHT_HOLD_MS}=await import('../dist/flight-input.js');
+  let time=0;const input=createFlightHoldInput({now:()=>time});
+  input.press('key:f','takeoff');time+=10;   // released while the page missed the keyup
+  input.press('key:f','takeoff');time+=FLIGHT_HOLD_MS-1;
+  assert.equal(input.active('takeoff'),false);
+  time+=2;assert.equal(input.active('takeoff'),true);
+  assert.equal(input.release('key:f').kind,'hold');
+});

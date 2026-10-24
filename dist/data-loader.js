@@ -2,7 +2,7 @@
 // as separate files instead of being baked into one huge script, and a progress bar tracks it.
 // Only start-up items count; streamed detail (coast chunks, heightmap tiles) loads in the background later.
 const WEIGHTS = {
-  'coast/base.json': 3, 'dem:overview': 2, places: 3, 'seas.json': 1, 'landmarks.json': 1, 'land:nearby': 6, ship: 2, water: 1
+  'coast/outline.json': 3, 'dem:overview': 2, places: 3, 'seas.json': 1, 'landmarks.json': 1, 'land:nearby': 6, ship: 2, water: 1
 };
 const TOTAL = Object.values(WEIGHTS).reduce((a, b) => a + b, 0);
 const done = new Set();

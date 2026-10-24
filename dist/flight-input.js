@@ -5,7 +5,8 @@ export const FLIGHT_HOLD_MS=350;
 export function createFlightHoldInput({now=()=>performance.now(),holdMs=FLIGHT_HOLD_MS}={}){
   const presses=new Map();
   return {
-    press(source,command){if(!presses.has(source))presses.set(source,{command,since:now()});},
+    // a fresh press restarts the hold, even if the last release was never seen (a key let go while the window was busy)
+    press(source,command){presses.set(source,{command,since:now()});},
     release(source){
       const press=presses.get(source);
       if(!press)return null;
