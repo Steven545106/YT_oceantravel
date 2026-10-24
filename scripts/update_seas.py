@@ -17,7 +17,7 @@ from shapely.geometry import shape, box, Polygon
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PATH = os.path.join(ROOT, 'dist', 'Data', 'seas.json')
-CLIP = (99.0, -5.0, 165.0, 56.0)   # lon0, lat0, lon1, lat1 of the map's seas
+CLIP = (85.0, -15.0, 165.0, 56.0)   # lon0, lat0, lon1, lat1 of the map's seas
 SEAS = [
     {'en': 'South China Sea', 'zh': '南海', 'kind': 'sea', 'color': '#fc8181', 'priority': 95, 'maxHeight': None, 'label': [19.0, 116.5]},
     {'en': 'Gulf of Tonkin', 'zh': '北部灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 60, 'maxHeight': 2200, 'label': [20.3, 108.3]},
@@ -25,6 +25,22 @@ SEAS = [
     {'en': 'Gulf of Thailand', 'zh': '泰國灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 70, 'maxHeight': 2600, 'label': [9.8, 102.5]},
     {'en': 'Java Sea', 'zh': '爪哇海', 'kind': 'sea', 'color': '#f6ad55', 'priority': 80, 'maxHeight': 2600, 'label': [-3.8, 112.0]},
     {'en': 'Makassar Strait', 'zh': '望加錫海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 65, 'maxHeight': 2200, 'label': [-1.5, 118.3]},
+    {'en': 'Andaman Sea', 'zh': '安達曼海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 80, 'maxHeight': 2600},
+    {'en': 'Strait of Malacca', 'zh': '麻六甲海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 75, 'maxHeight': 2200},
+    {'en': 'Strait of Singapore', 'zh': '新加坡海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 55, 'maxHeight': 700},
+    {'en': 'Gulf of Martaban', 'zh': '馬達班灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 50, 'maxHeight': 1200},
+    {'en': 'Bay of Bengal', 'zh': '孟加拉灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 80, 'maxHeight': 2600},
+    {'en': 'Banda Sea', 'zh': '班達海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 80, 'maxHeight': 2600},
+    {'en': 'Arafura Sea', 'zh': '阿拉弗拉海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 80, 'maxHeight': 2600},
+    {'en': 'Timor Sea', 'zh': '帝汶海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 80, 'maxHeight': 2600},
+    {'en': 'Molucca Sea', 'zh': '馬魯古海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 70, 'maxHeight': 2200},
+    {'en': 'Ceram Sea', 'zh': '塞蘭海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 65, 'maxHeight': 2000},
+    {'en': 'Halmahera Sea', 'zh': '哈馬黑拉海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 60, 'maxHeight': 1600},
+    {'en': 'Flores Sea', 'zh': '弗洛勒斯海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 70, 'maxHeight': 2200},
+    {'en': 'Savu Sea', 'zh': '薩武海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 65, 'maxHeight': 2000},
+    {'en': 'Bali Sea', 'zh': '峇里海', 'kind': 'sea', 'color': '#cbd5e0', 'priority': 60, 'maxHeight': 1600},
+    {'en': 'Selat Bali', 'zh': '峇里海峽', 'kind': 'strait', 'color': '#fbd38d', 'priority': 45, 'maxHeight': 700},
+    {'en': 'Gulf of Tomini', 'zh': '托米尼灣', 'kind': 'bay', 'color': '#cbd5e0', 'priority': 55, 'maxHeight': 1400},
     {'en': 'Philippine Sea', 'zh': '菲律賓海', 'kind': 'sea', 'color': '#b794f4', 'priority': 95, 'maxHeight': None, 'label': [24.0, 135.0]},
     {'en': 'Sulu Sea', 'zh': '蘇祿海', 'kind': 'sea', 'color': '#f6ad55', 'priority': 80, 'maxHeight': 2600, 'label': [8.8, 120.2]},
     {'en': 'Celebes Sea', 'zh': '西里伯斯海', 'kind': 'sea', 'color': '#f6ad55', 'priority': 80, 'maxHeight': 2600, 'label': [5.5, 122.5]},

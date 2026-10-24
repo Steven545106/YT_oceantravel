@@ -1,4 +1,4 @@
-"""Cut country coastlines out of OpenStreetMap land polygons, in the format of scripts/source-data/*_coast.json.
+"""Cut country coastlines out of OpenStreetMap land polygons (hand-tuned regions; newer regions use build_world.py), in the format of scripts/source-data/*_coast.json.
 
 Inputs (downloaded once, kept outside the project):
   OSM land polygons    https://osmdata.openstreetmap.de/download/land-polygons-split-4326.zip  (ODbL, © OpenStreetMap contributors)
@@ -12,7 +12,7 @@ zones of regions listed before it. Land already in another country's coast file 
 Yalu), and islands left mostly cut away (Kinmen and Matsu, in taiwan_coast.json) are dropped.
 
 Needs shapely and pyshp (pip install shapely pyshp). Run from the project root, e.g.:
-  <venv>/bin/python scripts/build_coast.py <preset: vietnam | china | philippines | borneo> <land-polygons-split-4326 folder>
+  <venv>/bin/python scripts/build_coast.py <preset: vietnam | china | philippines> <land-polygons-split-4326 folder>
 Boundary and province files are read from scripts/source-data/boundaries.
 """
 import json
@@ -58,19 +58,6 @@ PRESETS = {
         'area': (102.1, 8.3, 109.6, 23.5),
         'exclude': [],
         'regions': [('vietnam_coast.json', 'vn.geojson', 0)],
-    },
-    # Borneo: Brunei and Malaysia (Sabah, Sarawak, Labuan) inside their OSM boundaries, the rest is Indonesia
-    # (Kalimantan and nearby islets). Sulawesi's west coast, which the search area clips, is skipped.
-    'borneo': {
-        'area': (108.3, -4.4, 119.6, 7.6),
-        'exclude': ['philippines_coast.json'],
-        'drop_cut': True,
-        'skip': [(118.4, -4.4, 119.6, .8)],
-        'regions': [
-            ('brunei_coast.json', 'bn.geojson', 0),
-            ('malaysia_coast.json', 'my.geojson', 0),
-            ('indonesia_coast.json', '*', 0),
-        ],
     },
     'philippines': {
         'area': (116.8, 4.3, 127.0, 21.4),

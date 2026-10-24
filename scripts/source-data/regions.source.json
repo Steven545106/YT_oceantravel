@@ -32,7 +32,13 @@
     { "code": "my", "name": "馬來西亞", "label": "MALAYSIA", "coast": "malaysia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"],
       "aliases": ["馬來西亞", "马来西亚", "大馬", "Malaysia", "MY", "沙巴", "Sabah", "砂拉越", "Sarawak"] },
     { "code": "id", "name": "印尼", "label": "INDONESIA", "coast": "indonesia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"],
-      "aliases": ["印尼", "印度尼西亞", "印度尼西亚", "Indonesia", "ID", "加里曼丹", "Kalimantan"] }
+      "aliases": ["印尼", "印度尼西亞", "印度尼西亚", "Indonesia", "ID", "加里曼丹", "Kalimantan"] },
+    {"code": "sg", "name": "新加坡", "label": "SINGAPORE", "coast": "singapore_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["新加坡", "Singapore", "SG"]},
+    {"code": "tl", "name": "東帝汶", "label": "EAST TIMOR", "coast": "east_timor_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["東帝汶", "东帝汶", "East Timor", "Timor-Leste", "TL"]},
+    {"code": "th", "name": "泰國", "label": "THAILAND", "coast": "thailand_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["泰國", "泰国", "Thailand", "TH"]},
+    {"code": "kh", "name": "柬埔寨", "label": "CAMBODIA", "coast": "cambodia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["柬埔寨", "Cambodia", "KH"]},
+    {"code": "la", "name": "寮國", "label": "LAOS", "coast": "laos_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["寮國", "老挝", "Laos", "Lao PDR", "LA"]},
+    {"code": "mm", "name": "緬甸", "label": "MYANMAR", "coast": "myanmar_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["緬甸", "缅甸", "Myanmar", "MM"]}
   ],
   "circuits": [
     { "id": "circumTaiwan", "title": "環台一圈", "country": "tw", "area": "台灣", "centre": [23.7, 121.0], "saveKey": "sectors" },
@@ -40,9 +46,9 @@
   ],
   "places": "places.json",
   "dem": [
+    {"id": "southeast-asia", "file": "southeast_asia_dem.png", "bounds": [92.0, -11.5, 141.05, 28.6], "quality": 90},
     { "id": "cn", "file": "china_dem.png", "bounds": [104.3, 18.0, 126.0, 43.6], "quality": 90 },
     { "id": "vn", "file": "vietnam_dem.png", "bounds": [102.1, 8.3, 109.6, 23.5], "quality": 90 },
-    { "id": "bo", "file": "borneo_dem.png", "bounds": [108.3, -4.4, 119.6, 7.6], "quality": 90 },
     { "id": "tw", "file": "taiwan_dem.png", "bounds": [118.0, 21.8, 122.1, 26.5] },
     { "id": "ph", "file": "philippines_dem.png", "bounds": [116.8, 4.3, 127.0, 21.4], "quality": 90 },
     { "id": "ea", "file": "japan_dem.webp", "bounds": [122.9, 24.0, 154.1, 45.7], "quality": 90 }

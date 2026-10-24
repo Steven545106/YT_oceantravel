@@ -117,7 +117,10 @@ def clip_to_cells(points, deg, scale):
     cx0, cx1 = math.floor(min(lons) / scale / deg), math.floor(max(lons) / scale / deg)
     cy0, cy1 = math.floor(min(lats) / scale / deg), math.floor(max(lats) / scale / deg)
     if cx0 == cx1 and cy0 == cy1:
-        return [((cx0, cy0), points, False)]
+        # already cut at this grid upstream (build_world.py): a piece lying on a cell edge is cut there
+        edge = deg * scale
+        cut = min(lons) % edge == 0 or max(lons) % edge == 0 or min(lats) % edge == 0 or max(lats) % edge == 0
+        return [((cx0, cy0), points, cut)]
     polygon = Polygon(points).buffer(0)
     out = []
     for cx in range(cx0, cx1 + 1):
