@@ -7,9 +7,13 @@ export const FLIGHT_MAX_HEIGHT=10; // HUD metres = scene height × 1000.
 export const FLIGHT_GEAR_HEIGHT=.055;
 export const FLIGHT_LANDING_RADIUS=.18;
 const FLIGHT_CLEARANCE_RADIUS=.22;
-// Turbo ramps to three times cruise speed, then stays on until the pilot switches it off.
+// Turbo ramps to three times cruise speed over TURBO_RAMP_SECONDS. For players it then holds for TURBO_HOLD_SECONDS
+// and can be used once per TURBO_COOLDOWN_MS of real time (the caller keeps the last-use time); in developer mode it
+// stays on until the pilot switches it off and has no cooldown.
 export const TURBO_MULTIPLIER=3;
 export const TURBO_RAMP_SECONDS=10;
+export const TURBO_HOLD_SECONDS=20;
+export const TURBO_COOLDOWN_MS=60*60*1000;
 const clamp=(value,min,max)=>Math.max(min,Math.min(max,value));
 const approach=(value,target,step)=>value<target?Math.min(value+step,target):Math.max(value-step,target);
 
@@ -53,10 +57,14 @@ export function toggleHover(flight){
 // Turbo boost multiplier for the current moment, or 1 when it is not running.
 export const turboMultiplier=(flight)=>flight.turbo===null?1:1+(TURBO_MULTIPLIER-1)*Math.min(1,flight.turbo/TURBO_RAMP_SECONDS);
 
-export function requestTurbo(flight){
+export const turboCooldownLeft=(lastUsed,now)=>Number.isFinite(lastUsed)?Math.max(0,lastUsed+TURBO_COOLDOWN_MS-now):0;
+
+export function requestTurbo(flight,{unlimited=true,lastUsed=null,now=0}={}){
   if(flight.mode!=='flying'&&flight.mode!=='hover')return {ok:false,reason:'起飛後才能使用 Turbo'};
   if(flight.turbo!==null)return {ok:false,reason:'Turbo 已在加速中'};
-  flight.mode='flying';flight.turbo=0;flight.warning='';
+  const left=unlimited?0:turboCooldownLeft(lastUsed,now);
+  if(left>0)return {ok:false,reason:`Turbo 冷卻中，還要 ${Math.ceil(left/60000)} 分鐘`};
+  flight.mode='flying';flight.turbo=0;flight.turboUnlimited=unlimited;flight.warning='';
   return {ok:true};
 }
 
@@ -97,6 +105,7 @@ export function flightStep(flight,input,env,delta){
     const hover=flight.mode==='hover';
     const throttle=clamp(input.throttle??0,-1,1),steer=clamp(input.steer??0,-1,1);
     if(flight.turbo!==null){if(throttle<0)stopTurbo(flight);else flight.turbo+=dt;}   // braking ends it early
+    if(flight.turbo!==null&&!flight.turboUnlimited&&flight.turbo>TURBO_RAMP_SECONDS+TURBO_HOLD_SECONDS)stopTurbo(flight);   // a player's run is over
     const desiredSpeed=hover?(throttle>0?1.25:throttle<0?-.65:0):flight.turbo!==null?FIGHTER_CRUISE_SPEED*turboMultiplier(flight):throttle>0?FIGHTER_CRUISE_SPEED:throttle<0?1.1:clamp(flight.speed,1.4,FIGHTER_CRUISE_SPEED);   // coasting after turbo eases back to cruise
     flight.speed=approach(flight.speed,desiredSpeed,dt*(hover?2.8:3));
     flight.heading+=steer*dt*(hover ? .83 : .36);

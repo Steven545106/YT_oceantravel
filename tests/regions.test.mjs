@@ -12,7 +12,10 @@ test('registry lists the countries in unlock order with codes, names and places'
   assert.equal(new Set(COUNTRIES.map(c=>c.code)).size,COUNTRIES.length);
   for(const code of ['in','lk','mv','ir','sa','tr','eg'])assert.ok(COUNTRIES.some(c=>c.code===code),code);
   assert.deepEqual(COUNTRY_ORDER.slice(0,18),['台灣','日本','韓國','北韓','中國','香港','澳門','越南','菲律賓','汶萊','馬來西亞','印尼','新加坡','東帝汶','泰國','柬埔寨','寮國','緬甸']);
-  assert.deepEqual(COUNTRIES.filter(c=>c.unlock?.includes('circumJapan')).map(c=>c.code),['kr','kp','cn','hk','mo','vn']);
+  assert.deepEqual(COUNTRIES.find(c=>c.code==='tw').unlock??[],[]);
+  assert.deepEqual(COUNTRIES.find(c=>c.code==='jp').unlock,['master:台灣']);
+  assert.deepEqual(COUNTRIES.filter(c=>c.unlock?.includes('master:日本')).map(c=>c.code),['kr','kp']);
+  assert.ok(COUNTRIES.filter(c=>!['tw','jp','kr','kp'].includes(c.code)).every(c=>c.unlock.includes('master:韓國')&&c.unlock.includes('master:北韓')));
   assert.equal(countryCode('日本'),'jp');assert.equal(countryCode('kp'),'kp');assert.equal(countryName('ph'),'菲律賓');
   assert.equal(exaggerationAt(23.5,121),1.9);assert.equal(exaggerationAt(35,139),1.15);assert.equal(exaggerationAt(24.9,118.6),1.15);
   // small countries and Pacific islands have few named places (Niue 4, Pitcairn 8, Norfolk 11)

@@ -211,3 +211,22 @@ test('turbo can be restarted immediately after switching it off',()=>{
   assert.equal(aircraft.turbo,null);
   assert.equal(requestTurbo(aircraft).ok,true);
 });
+
+test('players get a 30 second Turbo once an hour; developer mode has neither limit',async()=>{
+  const {TURBO_RAMP_SECONDS,TURBO_HOLD_SECONDS,TURBO_COOLDOWN_MS,turboCooldownLeft}=await import('../dist/flight.js');
+  const openSky={...land,isOnLand:()=>false,terrainHeightAt:()=>0,bounds:{minX:-1e5,maxX:1e5,minZ:-1e5,maxZ:1e5}};
+  const player=createFlightState({x:0,y:2,z:0,mode:'flying',speed:FIGHTER_CRUISE_SPEED});
+  assert.equal(requestTurbo(player,{unlimited:false,lastUsed:null,now:0}).ok,true);
+  for(let i=0;i<20*(TURBO_RAMP_SECONDS+TURBO_HOLD_SECONDS)-2;i++)flightStep(player,{throttle:1},openSky,.05);
+  assert.notEqual(player.turbo,null,'still on just before 30 s');
+  for(let i=0;i<4;i++)flightStep(player,{throttle:1},openSky,.05);
+  assert.equal(player.turbo,null,'over after 30 s');
+  const again=requestTurbo(player,{unlimited:false,lastUsed:0,now:10*60*1000});
+  assert.equal(again.ok,false);assert.match(again.reason,/冷卻中，還要 50 分鐘/);
+  assert.equal(requestTurbo(player,{unlimited:false,lastUsed:0,now:TURBO_COOLDOWN_MS}).ok,true);
+  assert.equal(turboCooldownLeft(null,5),0);
+  const developer=createFlightState({x:0,y:2,z:0,mode:'flying',speed:FIGHTER_CRUISE_SPEED});
+  assert.equal(requestTurbo(developer,{unlimited:true,lastUsed:0,now:1}).ok,true,'no cooldown');
+  for(let i=0;i<1200;i++)flightStep(developer,{throttle:1},openSky,.05);
+  assert.notEqual(developer.turbo,null,'no time limit');
+});

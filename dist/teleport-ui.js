@@ -1,12 +1,13 @@
 import { COUNTRIES } from './regions.js';
+import { isDevMode } from './dev-mode.js';
 import { hasAchievement } from './achievements.js';
 import { geoToWorld } from './geo.js';
 import { setMapMarkers } from './labels.js';
 import { TELEPORT_REACH_KM, teleportHooks, teleports, teleportSiteProblem } from './teleports.js';
 
 // Teleport points in their window (P), on the chart (V) and on the world map (Tab); see teleports.js.
-// ?teleports=all opens every country's point without its master badge (for testing).
-const OPEN_ALL = new URLSearchParams(location.search).get('teleports') === 'all';
+// ?teleports=all or developer mode opens every country's point without its master badge.
+const OPEN_ALL = new URLSearchParams(location.search).get('teleports') === 'all' || isDevMode();   // developer mode too
 export const teleportUnlocked = (country) => OPEN_ALL || hasAchievement(`master:${country.name}`);
 
 // The points that can be used now, in world units.

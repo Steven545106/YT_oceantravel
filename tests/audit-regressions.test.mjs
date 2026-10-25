@@ -11,8 +11,8 @@ test('damaged progress fields do not erase valid stamps or break counters and lo
   for(const value of [null,[],true,'bad'])assert.doesNotThrow(()=>normalizeJourney(value));
   assert.equal(parseProgress('{bad'),null);
 });
-test('sightseeing counts stamp zones in every country during development',async()=>{
-  const memory=new Map();globalThis.localStorage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)};globalThis.addEventListener=()=>{};
+test('sightseeing counts stamp zones in every country in developer mode',async()=>{
+  const memory=new Map([['relax-dev-mode-v1','1']]);globalThis.localStorage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)};globalThis.addEventListener=()=>{};
   const {trackAchievements,recordEvent}=await import('../dist/achievements.js');
   const target={name:'外海景點',country:'台灣',x:100,z:100,stampZones:[{x:0,z:0,reach:2}]};
   const sourceTarget=target;

@@ -1,11 +1,12 @@
 import {initCameraZoom} from './camera-zoom.js';
-import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,stopTurbo,toggleHover,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
+import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,stopTurbo,toggleHover,turboCooldownLeft,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
 import {createFlightHoldInput} from './flight-input.js';
 import {flightFeedback} from './flight-feedback.js';
 import {createJetSound} from './jet-sound.js';
 import {BASE_CRUISE_SPEED} from './vehicle-speeds.js';
 import { limitShoreMove } from './shore-limit.js';
 import { seaSpotNear } from './vehicle-handoff.js';
+import { isDevMode, isDevModeShortcut, setDevMode } from './dev-mode.js';
 import { teleportHooks } from './teleports.js';
 import { initTeleportPanel } from './teleport-ui.js';
 import { updateLandmarkHud } from './landmark-hud.js';
@@ -187,11 +188,17 @@ for(const [id,command] of [['flight-takeoff','takeoff'],['flight-land','land']])
 }
 document.querySelector('#flight-hover')?.addEventListener('click',()=>flightCommand('hover'));
 const flightTurboButton=document.querySelector('#flight-turbo');
+// Players get one 30-second Turbo per hour (the last start is saved); developer mode has no limit.
+const TURBO_USED_KEY='relax-turbo-used-v1';
+let turboLastUsed=null;
+try{turboLastUsed=Number(localStorage.getItem(TURBO_USED_KEY))||null;}catch{/* private mode */}
 function flightTurbo(){
   if(currentVehicleType()!=='fighter')return;
   if(aircraft.turbo!==null){stopTurbo(aircraft);showEventToast('Turbo 已關閉');return;}
-  const result=requestTurbo(aircraft);
-  showEventToast(result.ok?'Turbo 已開啟：10 秒內加速到最高速度 3 倍，按 E 關閉':result.reason);
+  const unlimited=isDevMode(),now=Date.now();
+  const result=requestTurbo(aircraft,{unlimited,lastUsed:turboLastUsed,now});
+  if(result.ok&&!unlimited){turboLastUsed=now;try{localStorage.setItem(TURBO_USED_KEY,String(now));}catch{/* private mode */}}
+  showEventToast(!result.ok?result.reason:unlimited?'Turbo 已開啟：10 秒內加速到最高速度 3 倍，按 E 關閉':'Turbo 已開啟：10 秒內加速到 3 倍、維持 20 秒；每小時可用一次');
 }
 flightTurboButton?.addEventListener('click',()=>flightTurbo());
 // Ship panel: auto cruise (E) and stop (S), the same layout as the fighter's.
@@ -212,11 +219,21 @@ function updateShipPanel(){
   if(shipCruiseButton&&shipCruiseButton.textContent!==label)shipCruiseButton.textContent=label;
   shipCruiseButton?.classList.toggle('is-active',state.cruise);
 }
+// H switches between hovering and flying ahead, so the button names the mode it switches to.
+const flightHoverButton=document.querySelector('#flight-hover');
+function updateHoverButton(){
+  if(!flightHoverButton)return;
+  const text=aircraft.mode==='hover'?'H 開始飛行':aircraft.mode==='flying'?'H 切換滯空':'H 滯空／飛行';
+  if(flightHoverButton.textContent!==text)flightHoverButton.textContent=text;
+  flightHoverButton.classList.toggle('is-active',aircraft.mode==='hover');
+}
 function updateTurboButton(){
   if(!flightTurboButton)return;
-  const text=aircraft.turbo!==null?`E 關閉 Turbo ${turboMultiplier(aircraft).toFixed(1)}×`:'E 開啟 Turbo';
+  const cooling=aircraft.turbo===null&&!isDevMode()?turboCooldownLeft(turboLastUsed,Date.now()):0;
+  const text=aircraft.turbo!==null?`E 關閉 Turbo ${turboMultiplier(aircraft).toFixed(1)}×`:cooling>0?`Turbo 冷卻 ${Math.ceil(cooling/60000)} 分`:'E 開啟 Turbo';
   if(flightTurboButton.textContent!==text)flightTurboButton.textContent=text;
   flightTurboButton.classList.toggle('is-active',aircraft.turbo!==null);
+  flightTurboButton.classList.toggle('is-cooling',cooling>0);
 }
 
 // Offshore spots to jump to: [offshore position, landmark the bow should face].
@@ -309,6 +326,14 @@ renderer.domElement.addEventListener('pointercancel', endMapDrag);
 renderer.domElement.addEventListener('dblclick', () => { topDownView.offsetX = 0; topDownView.offsetZ = 0; });
 
 addEventListener('keydown', (event) => {
+  if (isDevModeShortcut(event)) {   // hidden: Ctrl + Cmd + Shift + E switches developer mode, then the game restarts with it
+    event.preventDefault();
+    if (event.repeat) return;
+    setDevMode(!isDevMode());
+    showEventToast(isDevMode() ? '開發者模式開啟：所有國家開放、Turbo 無限制，重新載入中…' : '開發者模式關閉：回到一般玩家模式，重新載入中…', 'big');
+    setTimeout(() => location.reload(), 1200);
+    return;
+  }
   if(event.key==='Escape'&&observation.view.active&&event.target.closest?.('#camera-zoom-panel')){observation.close();event.target.blur();return;}
   if (isTextControl(event.target)) {
     if (event.key === 'Escape') event.target.blur();
@@ -447,7 +472,7 @@ const PINK_WHALE_CHANCE = .05;
 let pinkWhalePending = 0;
 initJourney({ onNotify: showEventToast, onVisit: () => { if (Math.random() < PINK_WHALE_CHANCE) pinkWhalePending = 30; } });
 initAchievements({ onNotify: (text, kind) => { showEventToast(text, kind); if (!text.startsWith('蓋章')) logEvent(text); } });
-if (DEVELOPMENT_ALL_COUNTRIES_OPEN) setTimeout(() => showEventToast('開發階段：所有國家與景點開放，可正常集章；戰鬥機 Turbo 按 E 開／關'), 1500);
+if (DEVELOPMENT_ALL_COUNTRIES_OPEN) setTimeout(() => showEventToast('開發者模式：所有國家開放、Turbo 無限制（Ctrl+Cmd+Shift+E 關閉）'), 1500);
 const lightningFx = createLightningFx();
 // BOAT_WATERLINE_Y is where the boat's origin rides; the water surface itself is the plane y = 0.
 const SEA_LEVEL = 0;
@@ -501,7 +526,9 @@ function animate() {
     if(climbHold&&aircraft.mode==='grounded')flightCommand('takeoff');
     if(climbHold&&aircraft.mode==='landing')aircraft.mode='hover';
     if(descendHold&&['takingOff','landing'].includes(aircraft.mode))aircraft.mode='hover';
+    const modeBefore=aircraft.mode;
     flightStep(aircraft,{...axes,climb:climbHold,descend:descendHold},flightEnvironment,delta);
+    if(modeBefore==='takingOff'&&aircraft.mode==='hover')showEventToast('起飛完成，正在滯空：按 H 開始飛行');
     flightAcceleration=Math.max(0,(aircraft.speed-previousSpeed)/Math.max(delta,1e-4));
     flightKick=Math.max(flightKick*Math.exp(-delta*3.8),Math.min(1,flightAcceleration/4));
     nearestLand=distanceToLand(aircraft.x,aircraft.z);
@@ -696,7 +723,7 @@ function animate() {
     }
   }
   if(flightModeReadout&&flying)flightModeReadout.textContent=modeNames[aircraft.mode]??'飛行中';
-  if(flying)updateTurboButton();
+  if(flying){updateTurboButton();updateHoverButton();}
   else updateShipPanel();
   const compass = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   const windIndex = Math.round((Math.atan2(-windDirection.x, windDirection.y) / (Math.PI * 2)) * 8 + 8) % 8;
@@ -764,7 +791,7 @@ function activateVehicle({previous,type}){
     aircraft.y=Math.max(aircraft.y,aircraft.mode==='grounded'?terrainHeightAt(aircraft.x,aircraft.z)+.055:(isOnLand(aircraft.x,aircraft.z)?terrainHeightAt(aircraft.x,aircraft.z):0)+FLIGHT_MIN_CLEARANCE);
     displayFlightKnots=Math.abs(aircraft.speed*40);
     syncAircraft();
-    showEventToast(fromShip?'戰鬥機在船的上空滯空；按 W 前進，可飛到陸地上方降落':aircraft.mode==='grounded'?'戰鬥機在陸地待命，按 F 起飛':'戰鬥機已在空中；可飛到陸地上方降落');
+    showEventToast(fromShip?'戰鬥機在船的上空滯空：按 H 開始飛行，可飛到陸地上方降落':aircraft.mode==='grounded'?'戰鬥機在陸地待命，按 F 起飛':'戰鬥機已在空中；可飛到陸地上方降落');
   }else{
     const openSea=(x,z)=>!isOnLand(x,z)&&distanceToLand(x,z).km>=MIN_SHORE_KM+.5;
     const spot=previous==='fighter'?seaSpotNear(aircraft.x,aircraft.z,openSea):null;

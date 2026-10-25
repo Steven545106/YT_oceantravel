@@ -4,8 +4,10 @@ import {readdir,readFile} from 'node:fs/promises';
 import {spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 const root=new URL('../',import.meta.url);
-test('root files are launchers and both launch the relocated server',async()=>{
+test('root files are only the local launchers, and both launch the relocated server',async(t)=>{
   const files=(await readdir(root,{withFileTypes:true})).filter(e=>e.isFile()&&!e.name.startsWith('.')).map(e=>e.name).sort();
+  // the launchers are kept out of the repository (friends play on GitHub Pages), so a fresh checkout has none
+  if(!files.length){t.skip('no local launchers in this checkout');return;}
   assert.deepEqual(files,['開始遊戲.bat','開始遊戲.command'].sort());
   const mac=await readFile(new URL('../開始遊戲.command',import.meta.url),'utf8');
   const win=await readFile(new URL('../開始遊戲.bat',import.meta.url),'utf8');

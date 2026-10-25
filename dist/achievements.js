@@ -1,4 +1,5 @@
 import { isWithinStampReach } from './stamp-reach.js';
+import { isDevMode } from './dev-mode.js';
 import { normalizeAchievements, parseProgress } from './progress-data.js';
 // Achievements and the country unlock chain, both driven by the region registry (Data/regions.json):
 // - circuits: sail round a country (every one of 16 compass sectors round its centre visited within 60 km of its coast);
@@ -50,9 +51,9 @@ export const hasAchievement = (id) => !!data.unlocked[id];
 // country (as a name or a land code) -> unlocked?, and the message shown when it is still locked
 // Whether the player has really earned a country (what stamps, achievements and the stamp book go by).
 export const isCountryEarned = (country) => allMet(requirementsOf(countryCode(country)));
-// Development build: keep the achievement milestones, but open every region for travel and stamps.
-// Restore the normal progression by setting this to false after development.
-export const DEVELOPMENT_ALL_COUNTRIES_OPEN = true;
+// Developer mode (dev-mode.js, Ctrl + Cmd + Shift + E) opens every region for travel and stamps; achievements still count.
+// Switching it reloads the game, so the value read here at start-up holds for the whole session.
+export const DEVELOPMENT_ALL_COUNTRIES_OPEN = isDevMode();
 export const isCountryUnlocked = (country) => DEVELOPMENT_ALL_COUNTRIES_OPEN || isCountryEarned(country);
 const masterCountry = (id) => id.startsWith('master:') ? id.slice(7) : null;
 // "完成「環台一圈」", "集滿韓國與北韓的所有印章", joined when a country needs both kinds

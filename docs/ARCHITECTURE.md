@@ -154,8 +154,8 @@ Relax/
 
 ## 遊戲進度與解鎖
 
-- **開發階段：** 所有國家的海域、景點及集章直接開放；原有環台、環日本及國家達人等成就仍可累積。
-- **恢復正式解鎖鏈時：** 將 `achievements.js` 的 `DEVELOPMENT_ALL_COUNTRIES_OPEN` 改為 `false`；原規則依序是環台開日本、環日本開韓國／北韓／中國／香港／澳門／越南，再由韓國及北韓達人開放其他國家。
+- **一般玩家模式（預設）：** 只開放台灣；集滿台灣所有印章（台灣達人）開放日本，日本達人開放南韓與北韓，南韓與北韓達人開放其餘所有國家（規則寫在 `regions.source.json` 的 `unlock`）。戰鬥機 Turbo 每次維持 30 秒（10 秒加速＋20 秒），每小時可用一次。
+- **開發者模式（隱藏）：** 按 Ctrl + Cmd + Shift + E（Windows 為 Ctrl + Win + Shift + E）切換並重新載入，存在瀏覽器（`relax-dev-mode-v1`，`dev-mode.js`）：所有國家與傳送點開放、Turbo 無時間限制與冷卻；成就與達人徽章照常累積。
 
 解鎖條件寫在 `scripts/source-data/regions.source.json`：每國的 `unlock` 列出需要的成就 id（環島 `circuits` 的 id，或 `master:<國名>` 代表集滿該國印章），`arrival` 是抵達海岸的成就。`circuits` 定義環島中心點、北緯下限（日本不算琉球）與存檔欄位（沿用舊存檔的 `sectors`、`japanSectors`）。`achievements.js` 保留正式解鎖規則與存檔，但開發開關生效時不阻擋國家海域及集章。
 

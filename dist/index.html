@@ -43,7 +43,7 @@
         <span><kbd>A</kbd><kbd>D</kbd> 或 <kbd>←</kbd><kbd>→</kbd> 轉向</span>
         <span>戰鬥機：<kbd>F</kbd> 短按起飛／長按升高，<kbd>L</kbd> 短按陸地降落／長按降低</span>
         <span>戰鬥機：<kbd>E</kbd> 開／關 Turbo，10 秒內加速到最高速度 3 倍</span>
-        <span>戰鬥機：<kbd>H</kbd> 滯空；<kbd>S</kbd> 減速（滯空時倒退）</span>
+        <span>戰鬥機：<kbd>H</kbd> 切換滯空／飛行；<kbd>S</kbd> 減速（滯空時倒退）</span>
         <span><kbd>C</kbd> 切換視角　<kbd>R</kbd> 回到屏東燈塔外海</span>
         <span><kbd>V</kbd> 俯視航海圖（滾輪縮放・拖曳平移・雙擊回船）</span>
         <span><kbd>T</kbd> 時間：<b id="time-mode">日出（東方）</b>（每 2 分鐘自動切換日出／日落／夜晚）</span>
@@ -91,8 +91,8 @@
       </div>
       <div id="flight-controls" class="flight-controls" hidden aria-label="戰鬥機操控">
         <span id="flight-mode">滯空中</span>
-        <div><button id="flight-takeoff" type="button">F 起飛</button><button id="flight-land" type="button">L 降落</button><button id="flight-hover" type="button">H 滯空</button><button id="flight-turbo" class="flight-turbo" type="button">E Turbo</button></div>
-        <small>F／L 短按起降、長按升降 · W/S 前後 · A/D 轉向 · E 開／關 Turbo</small>
+        <div><button id="flight-takeoff" type="button">F 起飛</button><button id="flight-land" type="button">L 降落</button><button id="flight-hover" type="button">H 開始飛行</button><button id="flight-turbo" class="flight-turbo" type="button">E Turbo</button></div>
+        <small>F／L 短按起降、長按升降 · H 滯空／飛行切換 · W/S 前後 · A/D 轉向 · E 開／關 Turbo</small>
       </div>
       <div id="ship-controls" class="flight-controls ship-controls" hidden aria-label="船隻操控">
         <span id="ship-mode">停船</span>
@@ -144,6 +144,6 @@
     setTimeout(function () { var p = document.querySelector('#load-progress p'); if (!window.__gameStarted && p && location.protocol !== 'file:') p.firstChild.textContent = '網路較慢，仍在載入… '; }, 30000);
   })();
 </script>
-<script type="module" src="./build/ocean.bundle.js?v=494"></script>
+<script type="module" src="./build/ocean.bundle.js?v=511"></script>
   </body>
 </html>
