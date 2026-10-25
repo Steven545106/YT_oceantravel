@@ -124,10 +124,10 @@ def clean_label(label):
 # Generic words (after accents are stripped, lower case) and what they become; `prefix` words such as directions go in
 # front of the name, the rest after it.
 SUFFIX = {
-    '島': 'pulau pulo nusa gili ko koh kho ile ilot ada adasi jazirat jazireh jezireh jazira jaziratu dao hon con island isle islet isla ilha cay kyun motu tau pu',
-    '群島': 'kepulauan gugusan islands iles ilots adalari jaza\'ir jazair archipelago quan',
-    '灣': 'teluk ao vinh korfezi koyu khawr khor bay gulf baie khalij cove inlet sound bight',
-    '角': 'tanjung tanjong tg laem mui burnu ras cape point punta ujung head headland',
+    '島': 'pulau pulo nusa gili ko koh kho ile ilot ada adasi jazirat jazireh jezireh jazira jaziratu dao hon con island isle islet isla ilha cay kyun motu pu ostrov aral araly',
+    '群島': 'kepulauan gugusan islands iles ilots adalari jaza\'ir jazair archipelago araldary quan',
+    '灣': 'teluk ao vinh korfezi koyu khawr khor bay gulf baie khalij cove inlet sound bight zaliv kultuk',
+    '角': 'tanjung tanjong tg laem mui burnu ras cape point punta ujung head headland mys',
     '港': 'pelabuhan port harbour harbor limani mina wharf',
     '燈塔': 'lighthouse fanar mercusuar',
     '礁': 'rock rocks reef shoal karang batu',
@@ -138,16 +138,16 @@ SUFFIX = {
     '瀑布': 'falls waterfall',
     '山脈': 'range ranges',
     '半島': 'peninsula semenanjung yarimadasi',
-    '山': 'mount mt hill mountain gunung bukit dagi tepe jabal kuh',
+    '山': 'mount mt hill mountain gunung bukit dagi tepe jabal kuh gora tau uul dag dagh mta',
     '縣': 'kabupaten amphoe huyen shahrestan daerah zila regency county',
-    '市': 'kota city municipality mueang thanhpho thixa sehir',
-    '區': 'kecamatan district ilcesi khet tambon tehsil upazila qada qadaa division subdistrict borough markaz',
-    '省': 'provinsi propinsi province ostan muhafazat muhafazah tinh changwat ili governorate wilayah',
-    '州': 'wilayat state',
-    '村': 'kampung kampong desa village',
+    '市': 'kota city municipality mueang thanhpho thixa sehir qalasy kalasy shahri',
+    '區': 'kecamatan district ilcesi khet tambon tehsil upazila qada qadaa division subdistrict borough markaz raion rayon audany tumani etrap',
+    '省': 'provinsi propinsi province ostan muhafazat muhafazah tinh changwat ili governorate wilayah aimag aymag',
+    '州': 'wilayat state oblast oblysy viloyati welayaty',
+    '村': 'kampung kampong desa village aul selo',
     '鎮': 'town tran',
-    '河': 'river sungai',
-    '湖': 'lake danau',
+    '河': 'river sungai reka darya daryasy gol',
+    '湖': 'lake danau ozero kol kul koli nuur',
     '海峽': 'strait selat',
     '水道': 'channel',
 }
@@ -278,8 +278,9 @@ def strip_accents(text, country):
 def respell(word, country):
     """Spellings of each language turned into the plain onsets the syllable table knows."""
     word = re.sub(r'^ma?c(?=[^aeiouyh])', 'mak', word)   # McLennan, MacKay → 麥克…
+    word = re.sub(r'(iy|yy)$', 'i', word)   # Russian adjectives: Kargalinskiy → 卡爾加林斯基
     for a, b in [('wh', 'w'), ('tch', 'ch'), ('dj', 'j'), ('tj', 'ch'), ('oe', 'u'), ('kh', 'h'), ('gh', 'g'), ('dh', 'z'), ('ph', 'p' if country in ('泰國', '寮國', '柬埔寨') else 'f'),
-                 ('th', 't'), ('ny', 'n'), ('nh', 'n'), ('sy', 'sh'), ('zh', 'j'), ('qu', 'kw'), ('x', 's' if country == '越南' else 'ks'), ('q', 'k'),
+                 ('th', 't'), ('ny', 'n'), ('nh', 'n'), ('sy', 'sh'), ('zh', 'j'), ('qu', 'kw'), ('x', 's' if country == '越南' else 'h' if country == '烏茲別克' else 'ks'), ('q', 'k'),
                  ('aa', 'a'), ('ee', 'i'), ('oo', 'u'), ('uu', 'u'), ('ii', 'i'), ('ae', 'e'), ('gi', 'zi' if country == '越南' else 'gi')]:
         word = word.replace(a, b)
     if country in ('印尼', '馬來西亞', '汶萊', '新加坡', '東帝汶'):

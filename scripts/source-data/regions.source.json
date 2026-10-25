@@ -87,7 +87,16 @@
     {"code": "pw", "name": "帛琉", "label": "PALAU", "coast": "palau_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["帛琉", "帕劳", "Palau", "PW"]},
     {"code": "gu", "name": "關島", "label": "GUAM", "coast": "guam_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["關島", "关岛", "Guam", "GU"]},
     {"code": "mp", "name": "北馬里亞納群島", "label": "NORTHERN MARIANA ISLANDS", "coast": "northern_mariana_islands_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["北馬里亞納群島", "北马里亚纳群岛", "Northern Mariana Islands", "MP"]},
-    {"code": "nf", "name": "諾福克島", "label": "NORFOLK ISLAND", "coast": "norfolk_island_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["諾福克島", "诺福克岛", "Norfolk Island", "NF"]}
+    {"code": "nf", "name": "諾福克島", "label": "NORFOLK ISLAND", "coast": "norfolk_island_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["諾福克島", "诺福克岛", "Norfolk Island", "NF"]},
+    {"code": "ge", "name": "喬治亞", "label": "GEORGIA", "coast": "georgia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["喬治亞", "格鲁吉亚", "Georgia", "GE"]},
+    {"code": "am", "name": "亞美尼亞", "label": "ARMENIA", "coast": "armenia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["亞美尼亞", "亚美尼亚", "Armenia", "AM"]},
+    {"code": "az", "name": "亞塞拜然", "label": "AZERBAIJAN", "coast": "azerbaijan_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["亞塞拜然", "阿塞拜疆", "Azerbaijan", "AZ"]},
+    {"code": "kz", "name": "哈薩克", "label": "KAZAKHSTAN", "coast": "kazakhstan_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["哈薩克", "哈萨克斯坦", "Kazakhstan", "KZ"]},
+    {"code": "uz", "name": "烏茲別克", "label": "UZBEKISTAN", "coast": "uzbekistan_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["烏茲別克", "乌兹别克斯坦", "Uzbekistan", "UZ"]},
+    {"code": "tm", "name": "土庫曼", "label": "TURKMENISTAN", "coast": "turkmenistan_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["土庫曼", "土库曼斯坦", "Turkmenistan", "TM"]},
+    {"code": "kg", "name": "吉爾吉斯", "label": "KYRGYZSTAN", "coast": "kyrgyzstan_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["吉爾吉斯", "吉尔吉斯斯坦", "Kyrgyzstan", "KG"]},
+    {"code": "tj", "name": "塔吉克", "label": "TAJIKISTAN", "coast": "tajikistan_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["塔吉克", "塔吉克斯坦", "Tajikistan", "TJ"]},
+    {"code": "mn", "name": "蒙古", "label": "MONGOLIA", "coast": "mongolia_coast.json", "reliefStep": 0.2, "unlock": ["master:韓國", "master:北韓"], "aliases": ["蒙古", "蒙古国", "Mongolia", "MN"]}
   ],
   "circuits": [
     { "id": "circumTaiwan", "title": "環台一圈", "country": "tw", "area": "台灣", "centre": [23.7, 121.0], "saveKey": "sectors" },
@@ -95,6 +104,9 @@
   ],
   "places": "places.json",
   "dem": [
+    {"id": "central-asia-mongolia", "file": "central_asia_mongolia_dem.png", "bounds": [87.6, 41.5, 120.0, 52.2], "quality": 90},
+    {"id": "central-asia-central", "file": "central_asia_central_dem.png", "bounds": [46.4, 35.1, 87.4, 55.5], "quality": 90},
+    {"id": "central-asia-caucasus", "file": "central_asia_caucasus_dem.png", "bounds": [39.9, 38.3, 50.9, 43.7], "quality": 90},
     {"id": "oceania-pacific-east", "file": "oceania_pacific_east_dem.png", "bounds": [-180.0, -31.6, -124.7, 5.0], "quality": 90},
     {"id": "oceania-fiji-tuvalu", "file": "oceania_fiji_tuvalu_dem.png", "bounds": [170.5, -21.8, 180.0, -5.5], "quality": 90},
     {"id": "oceania-micronesia", "file": "oceania_micronesia_dem.png", "bounds": [131.0, -0.8, 177.1, 20.7], "quality": 90},

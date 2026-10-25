@@ -11,6 +11,7 @@ import io
 import math
 import os
 import sys
+import time
 import urllib.request
 import numpy as np
 from PIL import Image
@@ -27,9 +28,17 @@ def tile_xy(lon, lat, z):
 
 def fetch(z, x, y, cache):
     path = os.path.join(cache, f'{z}-{x}-{y}.png')
-    if not os.path.exists(path):
-        with urllib.request.urlopen(URL.format(z=z, x=x, y=y), timeout=60) as response:
-            open(path, 'wb').write(response.read())
+    for attempt in range(4):   # the tile server now and then drops a connection: try again after a pause
+        if os.path.exists(path):
+            break
+        try:
+            with urllib.request.urlopen(URL.format(z=z, x=x, y=y), timeout=60) as response:
+                data = response.read()
+            open(path, 'wb').write(data)
+        except OSError:
+            if attempt == 3:
+                raise
+            time.sleep(2 * (attempt + 1))
     rgb = np.asarray(Image.open(path).convert('RGB'), dtype=np.float64)
     return rgb[..., 0] * 256 + rgb[..., 1] + rgb[..., 2] / 256 - 32768
 

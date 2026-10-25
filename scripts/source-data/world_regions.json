@@ -228,6 +228,62 @@
         "master:韓國",
         "master:北韓"
       ]
+    },
+    "central-asia": {
+      "area": [
+        39.9,
+        35.0,
+        120.0,
+        55.5
+      ],
+      "countries": [
+        "GE",
+        "AM",
+        "AZ",
+        "KZ",
+        "UZ",
+        "TM",
+        "KG",
+        "TJ",
+        "MN"
+      ],
+      "names": {
+        "MN": "蒙古"
+      },
+      "exclude": [
+        "china_coast.json",
+        "iran_coast.json",
+        "turkey_coast.json",
+        "afghanistan_coast.json"
+      ],
+      "dem": {
+        "zoom": 8,
+        "pixelsPerDegree": 200,
+        "boxes": {
+          "caucasus": [
+            39.9,
+            38.3,
+            50.9,
+            43.7
+          ],
+          "central": [
+            46.4,
+            35.1,
+            87.4,
+            55.5
+          ],
+          "mongolia": [
+            87.6,
+            41.5,
+            120.0,
+            52.2
+          ]
+        }
+      },
+      "unlock": [
+        "master:韓國",
+        "master:北韓"
+      ]
     }
   }
 }
