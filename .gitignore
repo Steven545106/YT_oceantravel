@@ -6,3 +6,7 @@ node_modules/
 # local launchers (they need Python; friends play on GitHub Pages)
 開始遊戲.bat
 開始遊戲.command
+# development files kept on this computer only (GitHub hosts just the game in dist/)
+scripts/
+tests/
+docs/
