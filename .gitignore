@@ -3,3 +3,6 @@ node_modules/
 # local tool settings
 .claude/
 .openai/
+# local launchers (they need Python; friends play on GitHub Pages)
+開始遊戲.bat
+開始遊戲.command
