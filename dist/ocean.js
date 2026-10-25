@@ -1,15 +1,17 @@
 import {initCameraZoom} from './camera-zoom.js';
-import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,stopTurbo,toggleHover,turboCooldownLeft,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
+import {createFlightState,flightStep,landingSite,requestTakeoff,requestLanding,requestTurbo,stopTurbo,toggleHover,turboMultiplier,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from './flight.js';
 import {createFlightHoldInput} from './flight-input.js';
 import {flightFeedback} from './flight-feedback.js';
 import {createJetSound} from './jet-sound.js';
 import {BASE_CRUISE_SPEED} from './vehicle-speeds.js';
-import { scheduleNavigationRetry } from './nav.js';
+import { limitShoreMove } from './shore-limit.js';
+import { seaSpotNear } from './vehicle-handoff.js';
+import { teleportHooks } from './teleports.js';
+import { initTeleportPanel } from './teleport-ui.js';
 import { updateLandmarkHud } from './landmark-hud.js';
 import {setStampGuidanceEnabled} from './stamp-guidance.js';
-import { sceneryObstacles, movementBlocked } from './nav-obstacles.js';
-import { keyOf, movementAxes, isMovementKey, isTextControl } from './controls.js';
-import { TEST_MODE } from './test-mode.js';
+import { sceneryObstacles, movementBlocked } from './scenery-obstacles.js';
+import { keyOf, movementAxes, isMovementKey, isTextControl, shipThrottle, cruiseAfterKey, shipModeText } from './controls.js';
 import * as THREE from 'three';
 import { OrbitControls } from './vendor/OrbitControls.js';
 import { createWhaleEvent } from './whale.js';
@@ -25,10 +27,10 @@ import { cycleQuality, quality } from './quality.js';
 import { createAmbience } from './ambience.js';
 import { initSettings } from './settings.js';
 import { initJourney, journeyOpen, logEvent, recordSpecialStamp, recordWhale, setJourneyOpen, setStampTargets, trackJourney } from './journey.js';
-import { JAPAN_BARRIER_KM, PREVIEW_ALL_COUNTRIES, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
+import { JAPAN_BARRIER_KM, DEVELOPMENT_ALL_COUNTRIES_OPEN, achievementsOpen, initAchievements, isCountryUnlocked, lockMessage, recordEvent, setAchievementsOpen, trackAchievements } from './achievements.js';
 import { ELUANBI_OFFSHORE_START, geoToWorld, kmPerWorldUnitAt, worldToGeo, wrapWorldX } from './geo.js';
-import { loadCountryPlaces, placeCountries } from './places.js';
-import { COUNTRY_NAMES, buildCoarseRelief, distanceToLand, isOnLand, landIslands, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
+import { loadCountryPlaces, loadPlaceIndexes, placeCountries } from './places.js';
+import { COUNTRY_NAMES, buildCoarseRelief, distanceToCountry, distanceToLand, isOnLand, landIslands, nearestCoastPoint, onLandChange, streamLandAround, terrainHeightAt, updateLandDetail, updateLandStreaming } from './land.js';
 import { revealGame, startingHeading, BOAT_WATERLINE_Y, WORLD_BOUNDS, boat, boatLights, camera, compassDial, currentVehicleType, cycleTimeMode, cycleWeatherMode, fpsReadout, glowTexture, headingReadout, landDistanceReadout, lighthouseBeacons, loading, positionReadout, reflectionExclusions, renderer, scene, sky, directional, sun, setWeatherAlert, speedReadout, startingWorldPosition, timeOfDay, updateDayCycle, updateWeather, water, weatherBlend, windDirection, windReadout } from './core.js';
 import { createSeaLife } from './sea-life.js';
 import { createSeaFx } from './sea-fx.js';
@@ -38,11 +40,9 @@ import { createSkyExtras } from './sky-extras.js';
 import { createLightningFx, unlockWeatherSound } from './weather-fx.js';
 import { addTaiwanLandmarks, regroundTaiwanLandmarks, setTaipei101Night } from './taiwan-landmarks.js';
 import { addLandmarks, refreshStampStops, regroundLandmarks, landmarkEntries, landmarkInstances, updateLandmarkVisibility, updateLandmarkAnimations } from './landmarks.js';
-import { autopilotStep, markNavObstacle, nearestCoastPoint, runNavigation, setNavStatus, stopAutopilot } from './nav.js';
 import { cameraAnchor, keys, state, topDownView } from './state.js';
 import { setWorldMapOpen, updateExploration, updateWorldMap, worldMapOpen } from './world-map.js';
 import { seaNameAt, updateSeaName } from './seas.js';
-import './nav-ui.js';   // registers the destination box's suggestion list and submit handler
 import { updateMapLabels } from './labels.js';
 
 // Night view of the coast (see night-lights.js): clustered city lights, harbour lights, flashing lighthouses and sweeping beams.
@@ -91,7 +91,9 @@ onLandChange(({ kind, box, country }) => {
 });
 let landPlaced = false;
 async function addLand() {
+  const placeIndexes = loadPlaceIndexes(boat.position.x, boat.position.z);   // the region around the start first
   try { await streamLandAround(boat.position.x, boat.position.z); } catch (error) { console.error('無法載入附近的海岸線與地形', error); }
+  try { await placeIndexes; } catch (error) { console.error('無法載入地名索引', error); }   // city lights and sights need every region's places
   addTaiwanLandmarks(terrainHeightAt);
   addLandmarks();
   setStampTargets(landmarkEntries);
@@ -104,14 +106,13 @@ async function addLand() {
 
 
 // Past the seam meridian the boat or jet comes back in at the other end of the world, one world width away; the
-// camera, its look-at points and any autopilot course move with it, so nothing on screen jumps.
+// camera and its look-at points move with it, so nothing on screen jumps.
 function wrapVehicle() {
   const dx = wrapWorldX(boat.position.x) - boat.position.x;
   if (!dx) return;
   boat.position.x += dx;
   if (currentVehicleType() === 'fighter') aircraft.x += dx;
   camera.position.x += dx; smoothLook.x += dx; controls.target.x += dx;
-  for (const point of state.autopilot?.waypoints ?? []) point.x += dx;
 }
 
 function seaHeight(x, z, time) {
@@ -185,26 +186,37 @@ for(const [id,command] of [['flight-takeoff','takeoff'],['flight-land','land']])
   button?.addEventListener('click',event=>{if(event.detail===0)flightCommand(command);});
 }
 document.querySelector('#flight-hover')?.addEventListener('click',()=>flightCommand('hover'));
-// Turbo's last use is real time in localStorage, so reloading or another tab cannot skip the one-hour cooldown.
-const TURBO_KEY='relax-turbo-v1';
 const flightTurboButton=document.querySelector('#flight-turbo');
-const lastTurboUse=()=>{try{return Number(localStorage.getItem(TURBO_KEY))||NaN;}catch{return NaN;}};
 function flightTurbo(){
   if(currentVehicleType()!=='fighter')return;
-  // test mode: E switches Turbo on and off, with no cooldown and nothing saved
-  if(TEST_MODE&&aircraft.turbo!==null){stopTurbo(aircraft);showEventToast('Turbo 已關閉');return;}
-  const now=Date.now(),result=requestTurbo(aircraft,{lastUsed:lastTurboUse(),now,unlimited:TEST_MODE});
-  if(result.ok&&!TEST_MODE)try{localStorage.setItem(TURBO_KEY,String(now));}catch{/* private mode: cooldown lasts this session only */}
-  showEventToast(result.ok?TEST_MODE?'Turbo！10 秒內加速到最高速度 3 倍，再按 E 關閉':'Turbo！10 秒內加速到最高速度 3 倍':result.reason);
+  if(aircraft.turbo!==null){stopTurbo(aircraft);showEventToast('Turbo 已關閉');return;}
+  const result=requestTurbo(aircraft);
+  showEventToast(result.ok?'Turbo 已開啟：10 秒內加速到最高速度 3 倍，按 E 關閉':result.reason);
 }
 flightTurboButton?.addEventListener('click',()=>flightTurbo());
+// Ship panel: auto cruise (E) and stop (S), the same layout as the fighter's.
+const shipControls=document.querySelector('#ship-controls'),shipModeReadout=document.querySelector('#ship-mode');
+const shipCruiseButton=document.querySelector('#ship-cruise');
+function setCruise(on){
+  if(on===state.cruise)return;
+  state.cruise=on;
+  showEventToast(on?'自動巡航開啟：按 E 或 S 關閉':'自動巡航關閉');
+}
+shipCruiseButton?.addEventListener('click',event=>{event.currentTarget.blur();setCruise(!state.cruise);});
+document.querySelector('#ship-stop')?.addEventListener('click',event=>{event.currentTarget.blur();setCruise(false);state.velocity=0;});
+function updateShipPanel(){
+  if(!shipControls||shipControls.hidden)return;
+  const text=shipModeText({cruise:state.cruise,throttle:shipThrottle(keys,state.cruise),velocity:state.velocity});
+  if(shipModeReadout&&shipModeReadout.textContent!==text)shipModeReadout.textContent=text;
+  const label=state.cruise?'E 關閉自動巡航':'E 開啟自動巡航';
+  if(shipCruiseButton&&shipCruiseButton.textContent!==label)shipCruiseButton.textContent=label;
+  shipCruiseButton?.classList.toggle('is-active',state.cruise);
+}
 function updateTurboButton(){
   if(!flightTurboButton)return;
-  const left=TEST_MODE?0:turboCooldownLeft(lastTurboUse(),Date.now());
-  const text=aircraft.turbo!==null?`Turbo ${turboMultiplier(aircraft).toFixed(1)}×`:left>0?`E Turbo ${Math.floor(left/60000)}:${String(Math.floor(left/1000)%60).padStart(2,'0')}`:'E Turbo';
+  const text=aircraft.turbo!==null?`E 關閉 Turbo ${turboMultiplier(aircraft).toFixed(1)}×`:'E 開啟 Turbo';
   if(flightTurboButton.textContent!==text)flightTurboButton.textContent=text;
   flightTurboButton.classList.toggle('is-active',aircraft.turbo!==null);
-  flightTurboButton.classList.toggle('is-cooling',aircraft.turbo===null&&left>0);
 }
 
 // Offshore spots to jump to: [offshore position, landmark the bow should face].
@@ -223,25 +235,55 @@ function teleportTo(index) {
   if (spot.country && !isCountryUnlocked(spot.country)) { showEventToast(lockMessage(spot.country)); return; }
   const sea = geoToWorld(spot.sea);
   const landmark = geoToWorld(spot.landmark);
-  stopAutopilot();
+  moveBoatTo(sea.x, sea.y, (x, z) => Math.atan2(-(landmark.x - x), -(landmark.y - z)));
+  locationButtons.forEach((button) => button.classList.toggle('is-active', Number(button.dataset.location) === index));
+}
+// Jump the boat to a spot at sea (backed off the shore if needed), facing `heading` (a number or a function of where it lands).
+function moveBoatTo(x, z, heading) {
   state.velocity = 0;
-  boat.position.set(sea.x, BOAT_WATERLINE_Y, sea.y);
+  state.cruise = false;
+  boat.position.set(x, BOAT_WATERLINE_Y, z);
   // respect the 5 km rule: back away from the nearest shore until the boat is at least 5.5 km out
   for (let step = 0; step < 60 && distanceToLand(boat.position.x, boat.position.z).km < MIN_SHORE_KM + .5; step++) {
     const coast = nearestCoastPoint(boat.position.x, boat.position.z);
     const dx = boat.position.x - coast.x, dz = boat.position.z - coast.z, length = Math.hypot(dx, dz) || 1;
     boat.position.x += dx / length * .08; boat.position.z += dz / length * .08;
   }
-  boat.rotation.set(0, Math.atan2(-(landmark.x - boat.position.x), -(landmark.y - boat.position.z)), 0);
-  lastShoreKm = Infinity;
+  boat.rotation.set(0, typeof heading === 'function' ? heading(boat.position.x, boat.position.z) : heading, 0);
   // Snap the camera next to the boat so it doesn't glide hundreds of units across the map.
   const behind = new THREE.Vector3(.5, .75, 2.2).applyAxisAngle(new THREE.Vector3(0, 1, 0), boat.rotation.y).add(boat.position);
   camera.position.copy(behind);
   state.smoothLookReady = false;
   controls.target.copy(boat.position);
-  locationButtons.forEach((button) => button.classList.toggle('is-active', Number(button.dataset.location) === index));
 }
 locationButtons.forEach((button) => button.addEventListener('click', () => teleportTo(Number(button.dataset.location))));
+// Player-set teleport points, one per mastered country (teleports.js, teleport-ui.js).
+teleportHooks.travel = ({ name, x, z, heading }) => {
+  if (currentVehicleType() === 'fighter') { showEventToast('戰鬥機請直接飛行；傳送點供船隻使用'); return; }
+  moveBoatTo(x, z, heading);
+  const teleportWindow = document.querySelector('#teleport-window');
+  if (teleportWindow && !teleportWindow.hidden) showTeleports();   // close it: the trip is made
+  showEventToast(`已傳送到${name}傳送點`);
+};
+const teleportPanel = initTeleportPanel({
+  list: document.querySelector('#teleport-list'), notify: showEventToast,
+  boatCountry: () => distanceToLand(boat.position.x, boat.position.z).country,
+  here: (code) => {
+    const { latitude, longitude } = worldToGeo(boat.position.x, boat.position.z);
+    return { fighter: currentVehicleType() === 'fighter', onLand: isOnLand(boat.position.x, boat.position.z),
+      countryKm: distanceToCountry(boat.position.x, boat.position.z, code), lat: latitude, lon: longitude, heading: boat.rotation.y };
+  }
+});
+// P, the corner button or the ship panel's button opens the teleport window, and closes it again.
+function showTeleports() {
+  if (currentVehicleType() === 'fighter') { showEventToast('傳送點供船隻使用'); return; }
+  const panel = document.querySelector('#teleport-window'), toggle = document.querySelector('#teleport-toggle');
+  if (!panel) return;
+  panel.hidden = !panel.hidden;
+  toggle?.setAttribute('aria-expanded', String(!panel.hidden));
+  if (!panel.hidden) teleportPanel.render();   // master badges may have come since it was last shown
+}
+for (const id of ['teleport-toggle', 'ship-teleports']) document.querySelector(`#${id}`)?.addEventListener('click', (event) => { event.currentTarget.blur(); showTeleports(); });
 
 // Top-down chart: wheel to zoom, drag to pan, double-click to recentre on the boat.
 renderer.domElement.addEventListener('wheel', (event) => {
@@ -280,6 +322,7 @@ addEventListener('keydown', (event) => {
   if (event.key === 'Escape' && journeyOpen()) { setJourneyOpen(false); return; }
   if (event.key === 'Escape' && achievementsOpen()) { setAchievementsOpen(false); return; }
   if (event.key === 'Escape' && worldMapOpen) { setWorldMapOpen(false); return; }
+  if (event.key === 'Escape' && !document.querySelector('#teleport-window')?.hidden) { showTeleports(); return; }
   const key = keyOf(event);
   if(currentVehicleType()==='fighter'&&['arrowup','arrowdown'].includes(key))event.preventDefault();
   if(currentVehicleType()==='fighter'&&['f','l'].includes(key)){
@@ -294,8 +337,8 @@ addEventListener('keydown', (event) => {
   }
   if(key==='escape'&&observation.view.active){observation.close();return;}
   if (isMovementKey(key) && key.startsWith('arrow')) event.preventDefault();
-  if ((state.autopilot || state.navBusy) && (isMovementKey(key) || key === 'escape' || key === 'r')) stopAutopilot('已手動接管，自動導航結束');
   keys.add(key);
+  if (currentVehicleType() !== 'fighter' && !event.repeat) setCruise(cruiseAfterKey(key, state.cruise));
   if (/^[1-4]$/.test(key) && !event.repeat) teleportTo(Number(key) - 1);
   if (key === 'c' && !event.repeat) {
     observation.close();
@@ -317,6 +360,7 @@ addEventListener('keydown', (event) => {
   }
   if (key === 'r' && !event.repeat) {
     state.velocity = 0;
+    state.cruise = false;
     if(currentVehicleType()==='fighter'){
       aircraft=createFlightState({x:startingWorldPosition.x,y:.8,z:startingWorldPosition.y,heading:startingHeading,mode:'hover'});
       syncAircraft();showEventToast('已回到屏東外海上空');
@@ -331,6 +375,7 @@ addEventListener('keydown', (event) => {
   }
   if (key === 'g' && !event.repeat) cycleWeatherMode();
   if (key === 'o' && !event.repeat) setAchievementsOpen(!achievementsOpen());
+  if (key === 'p' && !event.repeat) showTeleports();
   if (key === 'j' && !event.repeat) setJourneyOpen(!journeyOpen());
   if (key === 'b' && !event.repeat) { const on = music.toggle(); const hint = document.querySelector('#music-state'); if (hint) hint.textContent = on ? '開' : '關'; }
   if (key === 'q' && !event.repeat) { const q = cycleQuality(); const hint = document.querySelector('#quality-state'); if (hint) hint.textContent = q.name; showEventToast(`畫質：${q.name}`); }
@@ -401,8 +446,8 @@ const whaleEvent = createWhaleEvent({
 const PINK_WHALE_CHANCE = .05;
 let pinkWhalePending = 0;
 initJourney({ onNotify: showEventToast, onVisit: () => { if (Math.random() < PINK_WHALE_CHANCE) pinkWhalePending = 30; } });
-initAchievements({ onNotify: (text, kind) => { showEventToast(text, kind); if (!text.startsWith('蓋章')) logEvent(text); }, onCircumnavigate: () => runNavigation('@circum') });
-if (PREVIEW_ALL_COUNTRIES) setTimeout(() => showEventToast('測試模式：所有國家開放、Turbo 不限次數（E 開／關），未解鎖國家不會集章或記錄成就'), 1500);
+initAchievements({ onNotify: (text, kind) => { showEventToast(text, kind); if (!text.startsWith('蓋章')) logEvent(text); } });
+if (DEVELOPMENT_ALL_COUNTRIES_OPEN) setTimeout(() => showEventToast('開發階段：所有國家與景點開放，可正常集章；戰鬥機 Turbo 按 E 開／關'), 1500);
 const lightningFx = createLightningFx();
 // BOAT_WATERLINE_Y is where the boat's origin rides; the water surface itself is the plane y = 0.
 const SEA_LEVEL = 0;
@@ -425,10 +470,11 @@ document.querySelector('#whale-button')?.addEventListener('click', (event) => {
   if (!whaleEvent.spawn()) showEventToast('附近沒有開闊海域');
 });
 
-let lastBarrierToast = 0, lastShoreToast = 0, lastShoreKm = Infinity;
+let lastBarrierToast = 0, lastShoreToast = 0;
 let lastFlightWarningToast=0;
-const MIN_SHORE_KM = 2;   // closest hand steering may bring the boat to a shore (autopilot stops further out)
-const MANUAL_CRUISE = BASE_CRUISE_SPEED;   // same as the autopilot's cruise speed
+const MIN_SHORE_KM = 2;   // within this the boat may not head straight for the shore
+const SHORE_FLOOR_KM = .3;   // nor slide nearer than this
+const MANUAL_CRUISE = BASE_CRUISE_SPEED;
 function animate() {
   updateFps();
   const delta = Math.min(clock.getDelta(), .05);
@@ -471,13 +517,11 @@ function animate() {
     skyFx.update({delta,elapsed,night:timeOfDay==='night',latitude:worldToGeo(aircraft.x,aircraft.z).latitude,storm:weatherBlend.storm,typhoon:weatherBlend.typhoon});
   }else{
   flightAcceleration=0;flightKick=0;
-  const autoSteer = autopilotStep(delta);
-  steer = autoSteer ?? 0;
-  if (autoSteer === null) {
-    const { throttle, steer: manualSteer } = movementAxes(keys);
-    // full ahead settles at the autopilot's cruising speed (2.2 units/s ≈ 88 kn): force / drag = 2.2
+  {
+    const { steer: manualSteer } = movementAxes(keys), throttle = shipThrottle(keys, state.cruise);
+    // full ahead settles at the cruising speed (2.2 units/s ≈ 88 kn): force / drag = 2.2
     const engineForce = throttle > 0 ? MANUAL_CRUISE * state.handling.speed * .45 : throttle < 0 ? -.26 : 0;
-    // W / S drive the engine forward or astern; water drag settles the boat at its cruising speed.
+    // W held or auto cruise (E) drives ahead, holding S drives astern (see shipThrottle); water drag settles the speed.
     state.velocity += (engineForce - state.velocity * .45) * delta;
     state.velocity = THREE.MathUtils.clamp(state.velocity, -.64, MANUAL_CRUISE * state.handling.speed);
     steer = manualSteer;
@@ -493,18 +537,11 @@ function animate() {
   const previousPosition={x:boat.position.x-(forward.x*state.velocity+starboard.x*sideDrift)*delta,z:boat.position.z-(forward.y*state.velocity+starboard.y*sideDrift)*delta};
   const sceneryHit=sceneryObstacles.some(o=>movementBlocked(o,previousPosition,{x:boat.position.x,z:boat.position.z}));
   if (isOnLand(boat.position.x, boat.position.z)||sceneryHit) {
-    const obstacleX=boat.position.x, obstacleZ=boat.position.z;
     boat.position.x = previousPosition.x;
     boat.position.z = previousPosition.z;
     state.velocity *= -.16;
+    state.cruise = false;   // running aground or into a closed country's waters stops the cruise; W sets off again
     state.collisionPulse = 1;
-    if (state.autopilot) {
-      const { query, retries } = state.autopilot;
-      markNavObstacle(obstacleX, obstacleZ);
-      stopAutopilot();
-      if (retries > 0) scheduleNavigationRetry(query, retries - 1);
-      else setNavStatus('撞上陸地，自動導航中止', 'error');
-    }
   }
   // Japan is locked until Taiwan has been sailed round: its waters turn the boat back.
   let shoreX=boat.position.x,shoreZ=boat.position.z;
@@ -513,22 +550,18 @@ function animate() {
   ambience.update(delta, { gulls: seaLife.gullLevel * 6, wind: windSpeed, rain: Math.max(weatherBlend.rain, weatherBlend.storm, weatherBlend.typhoon), storm: Math.min(1, weatherBlend.storm + weatherBlend.typhoon), speed: Math.abs(state.velocity) });
   skyExtras.update({ delta, elapsed, sun, precipitation: Math.max(weatherBlend.rain, weatherBlend.storm, weatherBlend.typhoon), mist: weatherBlend.mist });
   skyFx.update({ delta, elapsed, night: timeOfDay === 'night', latitude: worldToGeo(boat.position.x, boat.position.z).latitude, storm: weatherBlend.storm, typhoon: weatherBlend.typhoon });
-  // Hand steering may not bring the boat within MIN_SHORE_KM of any coast. Instead of stopping dead, the part of the move
-  // that heads toward the shore is removed, so the boat slides along the limit and can keep sailing parallel to the coast.
-  if (!state.autopilot && nearestLand.km < MIN_SHORE_KM && nearestLand.km < lastShoreKm) {
-    const moveX = boat.position.x - previousPosition.x, moveZ = boat.position.z - previousPosition.z;
-    boat.position.x -= moveX; boat.position.z -= moveZ;
-    const coast = nearestCoastPoint(boat.position.x, boat.position.z);
-    let nx = boat.position.x - coast.x, nz = boat.position.z - coast.z;
-    const length = Math.hypot(nx, nz) || 1; nx /= length; nz /= length;
-    const inward = moveX * nx + moveZ * nz;
-    const slideX = moveX - Math.min(0, inward) * nx, slideZ = moveZ - Math.min(0, inward) * nz;
-    boat.position.x += slideX; boat.position.z += slideZ;
-    const after = distanceToLand(boat.position.x, boat.position.z);
-    if (isOnLand(boat.position.x, boat.position.z) || sceneryObstacles.some(o=>movementBlocked(o,previousPosition,{x:boat.position.x,z:boat.position.z})) || after.km < Math.min(lastShoreKm, MIN_SHORE_KM) - .02) { boat.position.x -= slideX; boat.position.z -= slideZ; state.velocity *= .5; }   // a corner: no way along it
-    else lastShoreKm = Math.min(lastShoreKm, after.km);
-    if (performance.now() - lastShoreToast > 8000) { lastShoreToast = performance.now(); showEventToast(`靠岸限制：最近只能到離岸 ${MIN_SHORE_KM} 公里`); }
-  } else lastShoreKm = nearestLand.km;
+  // Hand steering may not head straight for a coast within MIN_SHORE_KM (see shore-limit.js): the part of the move
+  // towards the shore is removed, so the boat slides along it, and it can always sail back out of a harbour.
+  if (nearestLand.km < MIN_SHORE_KM) {
+    const kmAt = (x, z) => distanceToLand(x, z).km;
+    const result = limitShoreMove(previousPosition, { x: boat.position.x, z: boat.position.z }, {
+      distanceKm: kmAt, coastPoint: nearestCoastPoint, limitKm: MIN_SHORE_KM, floorKm: SHORE_FLOOR_KM,
+      blocked: (from, to) => isOnLand(to.x, to.z) || sceneryObstacles.some((o) => movementBlocked(o, from, to))
+    });
+    boat.position.x = result.x; boat.position.z = result.z;
+    if (result.stopped) state.velocity *= .5;
+    if (result.limited && performance.now() - lastShoreToast > 8000) { lastShoreToast = performance.now(); showEventToast(`靠岸限制：手動航行不能直接朝岸邊靠近到 ${MIN_SHORE_KM} 公里內`); }
+  }
   if(boat.position.x!==shoreX||boat.position.z!==shoreZ){
     shoreX=boat.position.x;shoreZ=boat.position.z;nearestLand=distanceToLand(shoreX,shoreZ);
   }
@@ -536,8 +569,8 @@ function animate() {
     boat.position.x = previousPosition.x;
     boat.position.z = previousPosition.z;
     state.velocity *= -.16;
+    state.cruise = false;   // running aground or into a closed country's waters stops the cruise; W sets off again
     state.collisionPulse = 1;
-    if (state.autopilot) stopAutopilot(lockMessage(nearestLand.country), 'error');
     if (performance.now() - lastBarrierToast > 4000) { lastBarrierToast = performance.now(); showEventToast(lockMessage(nearestLand.country)); }
   }
   // east-west the world wraps (wrapVehicle); north and south it ends
@@ -664,6 +697,7 @@ function animate() {
   }
   if(flightModeReadout&&flying)flightModeReadout.textContent=modeNames[aircraft.mode]??'飛行中';
   if(flying)updateTurboButton();
+  else updateShipPanel();
   const compass = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
   const windIndex = Math.round((Math.atan2(-windDirection.x, windDirection.y) / (Math.PI * 2)) * 8 + 8) % 8;
   windReadout.textContent = `WIND · ${compass[windIndex]} ${windSpeed.toFixed(0)} kn`;
@@ -712,38 +746,50 @@ function activateVehicle({previous,type}){
     seaVoyage={x:boat.position.x,z:boat.position.z,heading:boat.rotation.y};
     try{localStorage.setItem(VOYAGE_KEY,JSON.stringify(seaVoyage));}catch{/* private mode */}
   }
-  stopAutopilot();state.velocity=0;state.smoothLookReady=false;
+  state.velocity=0;state.smoothLookReady=false;
   flightKick=0;flightAcceleration=0;
   observation.close();state.orbitMode=false;state.topDownMode=false;controls.enabled=false;
-  keys.clear();flightHoldInput.clear();lastShoreKm=Infinity;
+  keys.clear();flightHoldInput.clear();
   const fighter=type==='fighter';
   document.body.classList.toggle('fighter-mode',fighter);
+  // Switching keeps the place (vehicle-handoff.js): the jet hovers above the boat, and the boat goes back on the sea
+  // under the jet (or the nearest open water when the jet is over land). Only a fresh start restores the saved flight.
+  const fromShip=!!previous&&previous!=='fighter';
   if(fighter){
-    if(!aircraftInitialized){
-      aircraft=savedAircraft??createFlightState({x:boat.position.x,y:Math.max(.8,terrainHeightAt(boat.position.x,boat.position.z)+.65),z:boat.position.z,heading:boat.rotation.y,mode:'hover'});
+    if(fromShip||!aircraftInitialized){
+      aircraft=(!fromShip&&savedAircraft)||createFlightState({x:boat.position.x,y:Math.max(.8,terrainHeightAt(boat.position.x,boat.position.z)+.65),z:boat.position.z,heading:boat.rotation.y,mode:'hover'});
       aircraftInitialized=true;
     }
     if(aircraft.mode==='grounded'&&!landingSite(aircraft,flightEnvironment).ok)aircraft.mode='hover';
     aircraft.y=Math.max(aircraft.y,aircraft.mode==='grounded'?terrainHeightAt(aircraft.x,aircraft.z)+.055:(isOnLand(aircraft.x,aircraft.z)?terrainHeightAt(aircraft.x,aircraft.z):0)+FLIGHT_MIN_CLEARANCE);
     displayFlightKnots=Math.abs(aircraft.speed*40);
     syncAircraft();
-    showEventToast(aircraft.mode==='grounded'?'戰鬥機在陸地待命，按 F 起飛':'戰鬥機已在空中；可飛到陸地上方降落');
+    showEventToast(fromShip?'戰鬥機在船的上空滯空；按 W 前進，可飛到陸地上方降落':aircraft.mode==='grounded'?'戰鬥機在陸地待命，按 F 起飛':'戰鬥機已在空中；可飛到陸地上方降落');
   }else{
-    boat.position.set(seaVoyage.x,BOAT_WATERLINE_Y,seaVoyage.z);
-    boat.rotation.set(0,seaVoyage.heading,0);
+    const openSea=(x,z)=>!isOnLand(x,z)&&distanceToLand(x,z).km>=MIN_SHORE_KM+.5;
+    const spot=previous==='fighter'?seaSpotNear(aircraft.x,aircraft.z,openSea):null;
+    if(spot){
+      moveBoatTo(spot.x,spot.z,aircraft.heading);
+      showEventToast(isOnLand(aircraft.x,aircraft.z)?'戰鬥機在陸地上空，船已放到最近的海面':spot.moved?'船已放到戰鬥機附近離岸的海面':'船已在戰鬥機下方的海面');
+    }else{
+      boat.position.set(seaVoyage.x,BOAT_WATERLINE_Y,seaVoyage.z);
+      boat.rotation.set(0,seaVoyage.heading,0);
+    }
   }
   if(flightControls)flightControls.hidden=!fighter;
+  if(shipControls)shipControls.hidden=fighter;
+  state.cruise=false;
   if(fighter)setStampGuidanceEnabled(false);
-  const navToggle=document.querySelector('#nav-toggle'),navPanel=document.querySelector('#nav-panel');
-  if(navToggle)navToggle.hidden=fighter;
-  if(navPanel&&fighter)navPanel.hidden=true;
+  const teleportToggle=document.querySelector('#teleport-toggle'),teleportWindow=document.querySelector('#teleport-window');
+  if(teleportToggle)teleportToggle.hidden=fighter;
+  if(teleportWindow&&fighter){teleportWindow.hidden=true;teleportToggle?.setAttribute('aria-expanded','false');}
   const guide=document.querySelector('#stamp-guidance-toggle');if(guide)guide.hidden=fighter;
   const mapGuide=document.querySelector('.world-map-guide-toggle');if(mapGuide)mapGuide.hidden=fighter;
   camera.position.set(fighter ? .18 : .5,fighter ? .34 : .75,fighter ? 1.35 : 2.2).applyAxisAngle(new THREE.Vector3(0,1,0),boat.rotation.y).add(boat.position);
 }
 addEventListener('vehiclechange',event=>activateVehicle(event.detail));
 if(currentVehicleType()==='fighter')activateVehicle({previous:null,type:'fighter'});
-else{boat.position.set(seaVoyage.x,BOAT_WATERLINE_Y,seaVoyage.z);boat.rotation.y=seaVoyage.heading;}
+else{boat.position.set(seaVoyage.x,BOAT_WATERLINE_Y,seaVoyage.z);boat.rotation.y=seaVoyage.heading;if(shipControls)shipControls.hidden=false;}
 const saveVoyage = () => {
   if(currentVehicleType()==='fighter'){saveAircraft();return;}
   seaVoyage={x:boat.position.x,z:boat.position.z,heading:boat.rotation.y};
@@ -763,8 +809,8 @@ addLand();   // after the saved or ?at= position is restored, so the first detai
 revealGame();
 renderer.setAnimationLoop(animate);
 
-// The help list and the autopilot panel are folded into two corner buttons.
-for (const [buttonId, panelId, focus] of [['controls-toggle', 'controls-panel', null], ['nav-toggle', 'nav-panel', 'nav-input']]) {
+// The help list is folded into a corner button (the teleport window has its own, see showTeleports).
+for (const [buttonId, panelId, focus] of [['controls-toggle', 'controls-panel', null]]) {
   const button = document.querySelector(`#${buttonId}`), panel = document.querySelector(`#${panelId}`);
   button?.addEventListener('click', () => {
     panel.hidden = !panel.hidden;

@@ -1,5 +1,4 @@
-// Shared by navigation and stamp collection: arriving offshore must count.
-// Open-water spots near a place, nearest first. Every spot is kept at least
+// Where a sight's stamp can be collected at sea: open-water spots near a place, nearest first. Every spot is kept at least
 // MIN_SHORE_DISTANCE_KM from the closest shore (true km, not map units).
 const MIN_SHORE_DISTANCE_KM = 5.5;
 // Normally a destination sits at least 5.5 km off the nearest shore. In cramped waters (the

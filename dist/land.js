@@ -3,7 +3,8 @@ import { pointInIsland } from './land-geometry.js';
 import { createTerrainMaterial } from './terrain-material.js';
 import { quality } from './quality.js';
 import * as THREE from 'three';
-import { fetchGrayPixels, fetchJson, markLoaded } from './data-loader.js';
+import { fetchBinary, fetchGrayPixels, fetchJson, markLoaded } from './data-loader.js';
+import { decodeCoastOutline } from './coast-outline.js';
 import { WORLD_MAX_X, WORLD_MIN_X, WORLD_UNITS_PER_KM, WORLD_WIDTH, geoToWorld, worldToGeo, kmPerWorldUnitAt } from './geo.js';
 import { boat, camera, reflectionExclusions, scene } from './core.js';
 import { REGIONS, COUNTRIES, COUNTRY_NAMES, countryByCode, exaggerationAt } from './regions.js';
@@ -11,7 +12,7 @@ export { COUNTRY_NAMES };
 
 // ---------------------------------------------------------------------------
 // Land, streamed by region (see regions.js / Data/regions.json):
-// - an always-loaded outline layer (coast/outline.json) holds the larger islands, simplified to about 1.6 km; near the
+// - an always-loaded outline layer (coast/outline.bin, which also lists the chunks) holds the larger islands, simplified to about 1.6 km; near the
 //   boat or jet each chunk's full-detail outlines (including the small islets) replace its outline islands, and the
 //   outline islands come back when it is far again. Chunks are cut at a 2° grid, so a continent streams in pieces;
 //   cut pieces carry `cut` (their straight edges are not coast);
@@ -27,7 +28,8 @@ const UNLOAD_RADIUS = 230;   // …and beyond which it is released again
 const COARSE_RADIUS = 1500, COARSE_RELEASE = 1800;   // coarse relief around the camera
 const MAX_PARALLEL_LOADS = 4;
 
-const outlineCoast = await fetchJson(COAST.outline);
+// every chunk ({ id, country, file, islands, bounds }) with its outline islands
+export const COAST_CHUNKS = decodeCoastOutline(await fetchBinary(COAST.outline), { countries: COUNTRIES, ...COAST });
 
 function makeIsland(flat, scale, country, chunk, cut = false, shift = 0) {
   const count = flat.length / 2;
@@ -72,12 +74,11 @@ const boxesOverlap = (a, b) => a.minX <= b.maxX && a.maxX >= b.minX && a.minZ <=
 
 export const landIslands = [];
 const chunks = new Map();   // id -> { meta, box, outline, current, state: 'outline' | 'loading' | 'detail' }
-const outlineById = new Map(outlineCoast.chunks.map((entry) => [entry.id, entry]));
-for (const meta of COAST.chunks) {
+for (const meta of COAST_CHUNKS) {
   const box = geoBoundsToWorld(meta.bounds);
   for (const shift of [0, ...ghostShifts(box)]) {
     const chunk = { meta, shift, box: shiftedBox(box, shift), state: 'outline' };
-    chunk.outline = makeIslands({ scale: outlineCoast.scale, polys: [], ...outlineById.get(meta.id) }, chunk);
+    chunk.outline = makeIslands({ scale: COAST.outlineScale, polys: meta.polys, cut: meta.cut }, chunk);
     chunk.current = chunk.outline;
     landIslands.push(...chunk.outline);
     chunks.set(shift ? `${meta.id}~${Math.sign(shift)}` : meta.id, chunk);
@@ -159,6 +160,48 @@ export function landIslandAt(x, z) {
 }
 
 export const isOnLand = (x, z) => landIslandAt(x, z) !== null;
+
+// The nearest point on any shore, in world units (backing a teleported boat off the coast, the shore limit).
+export function nearestCoastPoint(x, z) {
+  let bestSquared = Infinity, bestX = x, bestZ = z;
+  for (const island of landIslands) {
+    const boxDx = Math.max(island.minX - x, 0, x - island.maxX);
+    const boxDz = Math.max(island.minZ - z, 0, z - island.maxZ);
+    if (boxDx * boxDx + boxDz * boxDz >= bestSquared) continue;
+    const { points, count } = island;
+    for (let i = 0; i < count; i++) {
+      const next = i + 1 === count ? 0 : i + 1;
+      const ax = points[i * 2], az = points[i * 2 + 1], dx = points[next * 2] - ax, dz = points[next * 2 + 1] - az;
+      const lengthSquared = dx * dx + dz * dz;
+      const t = lengthSquared > 0 ? Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / lengthSquared)) : 0;
+      const nx = ax + dx * t, nz = az + dz * t, d = (x - nx) ** 2 + (z - nz) ** 2;
+      if (d < bestSquared) { bestSquared = d; bestX = nx; bestZ = nz; }
+    }
+  }
+  return { x: bestX, z: bestZ };
+}
+
+// Distance in true kilometres to one country's own shore (Infinity when none of its coast is loaded).
+export function distanceToCountry(x, z, country) {
+  let bestSquared = Infinity;
+  for (const island of landIslands) {
+    if (island.country !== country) continue;
+    const boxDx = Math.max(island.minX - x, 0, x - island.maxX);
+    const boxDz = Math.max(island.minZ - z, 0, z - island.maxZ);
+    if (boxDx * boxDx + boxDz * boxDz >= bestSquared) continue;
+    if (pointInIsland(island, x, z)) return 0;
+    const { points, count } = island;
+    for (let i = 0; i < count; i++) {
+      const next = i + 1 === count ? 0 : i + 1;
+      const ax = points[i * 2], az = points[i * 2 + 1], dx = points[next * 2] - ax, dz = points[next * 2 + 1] - az;
+      const lengthSquared = dx * dx + dz * dz;
+      const t = lengthSquared > 0 ? Math.min(1, Math.max(0, ((x - ax) * dx + (z - az) * dz) / lengthSquared)) : 0;
+      const ex = x - (ax + dx * t), ez = z - (az + dz * t);
+      bestSquared = Math.min(bestSquared, ex * ex + ez * ez);
+    }
+  }
+  return Math.sqrt(bestSquared) * kmPerWorldUnitAt(z);
+}
 
 // Nearest shore in true kilometres, and which country it belongs to.
 export function distanceToLand(x, z) {

@@ -7,21 +7,32 @@ import {TAIWAN_REFERENCE_MODELS} from '../dist/taiwan-reference-data.js';
 import {JAPAN_REFERENCE_MODELS} from '../dist/japan-reference-data.js';
 import {KOREA_REFERENCE_MODELS} from '../dist/korea-reference-data.js';
 import {NK_PH_REFERENCE_MODELS} from '../dist/nk-ph-reference-data.js';
+import {HK_MACAU_REFERENCE_MODELS} from '../dist/hk-macau-reference-data.js';
+import {VIETNAM_REFERENCE_MODELS} from '../dist/vietnam-reference-data.js';
+import {BRUNEI_MALAYSIA_REFERENCE_MODELS} from '../dist/brunei-malaysia-reference-data.js';
+import {INDONESIA_SINGAPORE_REFERENCE_MODELS} from '../dist/indonesia-singapore-reference-data.js';
 const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},{get:(t,k)=>t[k]??(()=>{})});
 globalThis.document={createElement:()=>({width:128,height:128,getContext:()=>ctx})};
 const {LANDMARK_BUILDERS}=await import('../dist/landmark-models.js');
 const landmarks=JSON.parse(await readFile(new URL('../dist/Data/landmarks.json',import.meta.url))).landmarks;
-const references=[...TAIWAN_REFERENCE_MODELS,...JAPAN_REFERENCE_MODELS,...KOREA_REFERENCE_MODELS,...NK_PH_REFERENCE_MODELS];
+const references=[...TAIWAN_REFERENCE_MODELS,...JAPAN_REFERENCE_MODELS,...KOREA_REFERENCE_MODELS,...NK_PH_REFERENCE_MODELS,...HK_MACAU_REFERENCE_MODELS,...VIETNAM_REFERENCE_MODELS,...BRUNEI_MALAYSIA_REFERENCE_MODELS,...INDONESIA_SINGAPORE_REFERENCE_MODELS];
 const items=buildReviewCatalogue(landmarks,references);
 test('unified preview covers every game landmark with unique URLs and valid builders',()=>{
   assert.equal(items.length,landmarks.length);assert.equal(new Set(items.map(item=>item.id)).size,items.length);
-  assert.deepEqual(REVIEW_COUNTRIES.map(country=>items.filter(item=>item.country===country).length),[25,29,17,10,2]);
+  assert.deepEqual(REVIEW_COUNTRIES.map(country=>items.filter(item=>item.country===country).length),[25,29,17,2,10,5,5,5,3,6,4,5]);
   for(const item of items){assert.equal(typeof LANDMARK_BUILDERS[item.type],'function',item.name);assert.ok(item.features);}
   for(const ref of references){const item=items.find(item=>item.name===ref.name);assert.equal(item.id,ref.id??ref.type);assert.deepEqual(item.sources,ref.sources);}
 });
 test('country, aliases and combined filters work and zero results can recover',()=>{
   assert.equal(filterReviewCatalogue(items,{country:'菲律賓'}).length,10);
   assert.equal(filterReviewCatalogue(items,{country:'北韓'}).length,2);
+  assert.equal(filterReviewCatalogue(items,{country:'香港'}).length,5);
+  assert.equal(filterReviewCatalogue(items,{country:'澳門'}).length,5);
+  assert.equal(filterReviewCatalogue(items,{country:'越南'}).length,5);
+  assert.equal(filterReviewCatalogue(items,{country:'汶萊'}).length,3);
+  assert.equal(filterReviewCatalogue(items,{country:'馬來西亞'}).length,6);
+  assert.equal(filterReviewCatalogue(items,{country:'印尼'}).length,4);
+  assert.equal(filterReviewCatalogue(items,{country:'新加坡'}).length,5);
   assert.equal(filterReviewCatalogue(items,{query:'NSYSU'})[0].name,'國立中山大學');
   assert.equal(filterReviewCatalogue(items,{country:'日本',query:'SkyTree'})[0].name,'東京晴空塔');
   assert.equal(filterReviewCatalogue(items,{country:'台灣',query:'東京'}).length,0);

@@ -4,11 +4,10 @@ import {isCountryUnlocked} from './achievements.js';
 import {hasStamp} from './journey.js';
 import { geoToWorld, worldToGeo, kmPerWorldUnitAt } from './geo.js';
 import { WORLD_BOUNDS, boat, currentVehicleType } from './core.js';
-import { REGIONS } from './regions.js';
-import { landIslands } from './land.js';
+import { COAST_CHUNKS, landIslands } from './land.js';
 import { seaMainAnchors } from './seas.js';
 import { PLACE_TYPE_WEIGHT, placeCountries, placesVersion } from './places.js';
-import { runNavigation } from './nav.js';
+import { teleportMarkers, travelToTeleport } from './teleport-ui.js';
 
 // ---------------------------------------------------------------------------
 // Exploration + world map (Tab): unexplored water and land stay grey; what the boat has
@@ -20,7 +19,7 @@ const MAP_PIXELS_PER_UNIT = 2;
 // The chart covers the land in the region registry plus a margin, not the whole wrapping world.
 const MAP_BOUNDS = (() => {
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
-  for (const { bounds: [lon0, lat0, lon1, lat1] } of REGIONS.coast.chunks) {
+  for (const { bounds: [lon0, lat0, lon1, lat1] } of COAST_CHUNKS) {
     const a = geoToWorld({ latitude: lat1, longitude: lon0 }), b = geoToWorld({ latitude: lat0, longitude: lon1 });
     minX = Math.min(minX, a.x); maxX = Math.max(maxX, b.x); minZ = Math.min(minZ, a.y); maxZ = Math.max(maxZ, b.y);
   }
@@ -211,13 +210,25 @@ function drawWorldMap() {
       context.beginPath();context.arc(x,y,10,0,Math.PI*2);context.fill();context.stroke();
       if(i>=3)return;
       const bearing=stampBearing({x:boat.position.x,z:boat.position.z},stop,boat.rotation.y);
-      const text=`⚑ ${t.name} · ${km.toFixed(0)} km · ${bearing.instruction}`;
+      const text=`⚑ ${t.country}・${t.name} · ${km.toFixed(0)} km · ${bearing.instruction}`;
       context.font='600 28px sans-serif';context.textAlign='left';
       const w=context.measureText(text).width+18,lx=Math.max(8,Math.min(width-w-8,x+18));let ly=Math.max(36,y);
       for(let n=0;n<8&&labels.some(b=>lx<b.x+b.w&&lx+w>b.x&&Math.abs(ly-b.y)<40);n++)ly+=42;
       if(ly>height-12)return;
       labels.push({x:lx,y:ly,w});context.fillStyle='#06213dee';context.fillRect(lx-5,ly-30,w,38);context.fillStyle='#c4f5ff';context.fillText(text,lx+4,ly);
     });
+  }
+  // Teleport points: a violet ring and the country's name; click one to go there.
+  context.font = '700 26px sans-serif';
+  context.textAlign = 'left';
+  for (const marker of teleportMarkers()) {
+    const x = toX(marker.x), y = toY(marker.z);
+    context.lineWidth = 5; context.strokeStyle = '#2a0f4a'; context.fillStyle = '#d9b8ff';
+    context.beginPath(); context.arc(x, y, 13, 0, Math.PI * 2); context.stroke();
+    context.lineWidth = 3; context.strokeStyle = '#d9b8ff';
+    context.beginPath(); context.arc(x, y, 13, 0, Math.PI * 2); context.moveTo(x - 20, y); context.lineTo(x + 20, y); context.moveTo(x, y - 20); context.lineTo(x, y + 20); context.stroke();
+    context.lineWidth = 6; context.strokeStyle = '#1a0830';
+    context.strokeText(`${marker.name}傳送點`, x + 22, y - 10); context.fillText(`${marker.name}傳送點`, x + 22, y - 10);
   }
   // The boat.
   const bx = toX(boat.position.x), by = toY(boat.position.z);
@@ -242,7 +253,7 @@ function drawWorldMap() {
   worldMapStats.textContent = `陸地 ${pct(landSeen, landTotal)}%　·　海洋 ${pct(seaSeen, seaTotal)}%　·　整體 ${pct(landSeen + seaSeen, landTotal + seaTotal)}%`;
 }
 
-// --- Zoom / pan / click-to-navigate on the world map -------------------------
+// --- Zoom / pan on the world map; click a teleport point to go there -------
 const worldMapView = document.querySelector('#world-map-view');
 const worldMapTip = document.querySelector('#world-map-tip');
 const mapView = { scale: 1, tx: 0, ty: 0, fit: 1 };
@@ -282,7 +293,7 @@ function mapPointToWorld(clientX, clientY) {
 }
 const MAP_CLICK_TYPES = new Set(['ADM1', 'ADM2', 'PPLC', 'PPLA', 'PPLA2', 'ISL', 'CAPE', 'LTHSE', 'HBR', 'PRT']);
 let mapClickPlaces = null, mapClickVersion = -1;
-// The named place under the cursor (within ~16 screen px), else null so a click falls back to raw coordinates.
+// The named place under the cursor (within ~16 screen px), for the tooltip.
 function mapPlaceNear(clientX, clientY) {
   if (!mapClickPlaces || mapClickVersion !== placesVersion) {
     mapClickVersion = placesVersion;
@@ -307,6 +318,11 @@ function mapPlaceNear(clientX, clientY) {
   }
   return best;
 }
+// The teleport point under the cursor (within ~18 screen px).
+function teleportNear(clientX, clientY) {
+  const point = mapPointToWorld(clientX, clientY), reach = 18 / (mapView.scale * MAP_PIXELS_PER_UNIT);
+  return teleportMarkers().find((marker) => Math.hypot(marker.x - point.x, marker.z - point.z) <= reach) ?? null;
+}
 let mapDrag = null;
 worldMapView.addEventListener('wheel', (event) => {
   event.preventDefault();
@@ -324,10 +340,11 @@ worldMapView.addEventListener('pointermove', (event) => {
     if (mapDrag.moved) { mapView.tx = mapDrag.tx + dx; mapView.ty = mapDrag.ty + dy; applyMapView(); }
     return;
   }
-  const near = mapPlaceNear(event.clientX, event.clientY);
-  if (!near) { worldMapTip.hidden = true; return; }
+  const teleport = teleportNear(event.clientX, event.clientY);
+  const near = teleport ? null : mapPlaceNear(event.clientX, event.clientY);
+  if (!near && !teleport) { worldMapTip.hidden = true; return; }
   const box = worldMapView.getBoundingClientRect();
-  worldMapTip.textContent = currentVehicleType()==='fighter'?`${near.country}-${near.place.name}　飛行觀光中`:`${near.country}-${near.place.name}　點擊導航`;
+  worldMapTip.textContent = teleport ? `${teleport.name}傳送點　${currentVehicleType()==='fighter'?'船隻專用':'點擊傳送'}` : `${near.country}-${near.place.name}`;
   worldMapTip.style.left = `${event.clientX - box.left + 14}px`;
   worldMapTip.style.top = `${event.clientY - box.top + 12}px`;
   worldMapTip.hidden = false;
@@ -338,16 +355,8 @@ worldMapView.addEventListener('pointerup', (event) => {
   worldMapView.classList.remove('is-dragging');
   if (!drag || drag.moved || event.target.closest('.world-map-zoom')) return;
   if(currentVehicleType()==='fighter')return;
-  const near = mapPlaceNear(event.clientX, event.clientY);
-  let query;
-  if (near) query = `${near.country}-${near.place.name}`;
-  else {
-    const point = mapPointToWorld(event.clientX, event.clientY);
-    const geo = worldToGeo(point.x, point.z);
-    query = `@${geo.latitude.toFixed(4)},${geo.longitude.toFixed(4)}`;
-  }
-  setWorldMapOpen(false);
-  runNavigation(query);
+  const teleport = teleportNear(event.clientX, event.clientY);
+  if (teleport) { setWorldMapOpen(false); travelToTeleport(teleport.code); }
 });
 worldMapView.addEventListener('pointerleave', () => { worldMapTip.hidden = true; });
 document.querySelector('#world-map-zoom-in').addEventListener('click', () => { const b = worldMapView.getBoundingClientRect(); zoomMapAt(1.6, b.left + b.width / 2, b.top + b.height / 2); });

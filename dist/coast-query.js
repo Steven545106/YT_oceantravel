@@ -1,4 +1,4 @@
-// Exact coastline checks shared by the background planner and tests; no rendering or DOM.
+// Exact coastline checks (point in island, nearest shore, distance) for stamp stops, collision and tests; no rendering or DOM.
 export function pointInIsland(island,x,z){
   const {points,count}=island;let inside=false;
   for(let i=0,j=count-1;i<count;j=i++){

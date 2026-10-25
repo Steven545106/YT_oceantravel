@@ -1,5 +1,5 @@
-import {pointSegmentDistanceSquared,segmentDistanceSquared} from './nav-coast.js';
-// Shared visual foundations; bridge openings remain navigable.
+import {pointSegmentDistanceSquared,segmentDistanceSquared} from './coast-query.js';
+// Sights' foundations the boat cannot sail through (bridge openings stay open); used for collision.
 export const sceneryObstacles=[];
 export function obstacleContains(o,x,z,padding=0){
   if(o.minX!==undefined)return x>=o.minX-padding&&x<=o.maxX+padding&&z>=o.minZ-padding&&z<=o.maxZ+padding;

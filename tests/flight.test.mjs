@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {buildFighter,FIGHTER_PAINTS} from '../dist/fighter.js';
 import {createFlightState,flightStep,landingSite,requestLanding,requestTakeoff,toggleHover,FLIGHT_MIN_CLEARANCE,FLIGHT_MAX_HEIGHT} from '../dist/flight.js';
-import {requestTurbo,stopTurbo,turboCooldownLeft,TURBO_COOLDOWN_MS,TURBO_MULTIPLIER} from '../dist/flight.js';
+import {requestTurbo,stopTurbo,TURBO_MULTIPLIER} from '../dist/flight.js';
 import {createFlightHoldInput,FLIGHT_HOLD_MS} from '../dist/flight-input.js';
 import {BASE_CRUISE_SPEED,YACHT_SPEED_FACTOR,FIGHTER_CRUISE_SPEED} from '../dist/vehicle-speeds.js';
 import {flightFeedback} from '../dist/flight-feedback.js';
@@ -180,33 +180,34 @@ test('flight cannot cross world bounds and grounded mode cannot taxi into water'
   assert.ok(parked.y>=FLIGHT_MIN_CLEARANCE);
 });
 
-test('turbo reaches three times top speed within 10 seconds, then eases back, once per hour',()=>{
+test('turbo reaches three times top speed within 10 seconds and stays on until stopped',()=>{
   const openSky={...land,isOnLand:()=>false,terrainHeightAt:()=>0,bounds:{minX:-1e4,maxX:1e4,minZ:-1e4,maxZ:1e4}};
   const aircraft=createFlightState({x:0,y:2,z:0,mode:'flying',speed:FIGHTER_CRUISE_SPEED});
-  assert.equal(requestTurbo(createFlightState({mode:'grounded'}),{lastUsed:NaN,now:0}).ok,false);
-  assert.equal(requestTurbo(aircraft,{lastUsed:0,now:TURBO_COOLDOWN_MS-1000}).ok,false);
-  assert.equal(requestTurbo(aircraft,{lastUsed:0,now:TURBO_COOLDOWN_MS}).ok,true);
-  assert.equal(turboCooldownLeft(0,TURBO_COOLDOWN_MS/2),TURBO_COOLDOWN_MS/2);
+  assert.equal(requestTurbo(createFlightState({mode:'grounded'})).ok,false);
+  assert.equal(requestTurbo(aircraft).ok,true);
   for(let i=0;i<200;i++)flightStep(aircraft,{throttle:1},openSky,.05);   // 10 s
   assert.ok(Math.abs(aircraft.speed-FIGHTER_CRUISE_SPEED*TURBO_MULTIPLIER)<1e-9);
-  for(let i=0;i<600;i++)flightStep(aircraft,{},openSky,.05);   // turbo over, coasting
-  assert.equal(aircraft.turbo,null);
+  for(let i=0;i<600;i++)flightStep(aircraft,{},openSky,.05);
+  assert.notEqual(aircraft.turbo,null);
+  stopTurbo(aircraft);
+  flightStep(aircraft,{},openSky,.05);
+  for(let i=0;i<200;i++)flightStep(aircraft,{},openSky,.05);
   assert.equal(aircraft.speed,FIGHTER_CRUISE_SPEED);
   const hovering=createFlightState({x:0,y:2,z:0,mode:'hover'});
-  assert.equal(requestTurbo(hovering,{lastUsed:NaN,now:0}).ok,true);
+  assert.equal(requestTurbo(hovering).ok,true);
   assert.equal(hovering.mode,'flying');
   flightStep(hovering,{throttle:-1},openSky,.05);
   assert.equal(hovering.turbo,null);
 });
 
-test('test-mode turbo ignores the cooldown, keeps going until switched off, and can start again at once',()=>{
+test('turbo can be restarted immediately after switching it off',()=>{
   const openSky={...land,isOnLand:()=>false,terrainHeightAt:()=>0,bounds:{minX:-1e5,maxX:1e5,minZ:-1e5,maxZ:1e5}};
   const aircraft=createFlightState({x:0,y:2,z:0,mode:'flying',speed:FIGHTER_CRUISE_SPEED});
-  assert.equal(requestTurbo(aircraft,{lastUsed:0,now:1,unlimited:true}).ok,true);
+  assert.equal(requestTurbo(aircraft).ok,true);
   for(let i=0;i<1200;i++)flightStep(aircraft,{throttle:1},openSky,.05);   // a minute, well past the normal 30 s
   assert.notEqual(aircraft.turbo,null);
   assert.equal(aircraft.speed,FIGHTER_CRUISE_SPEED*TURBO_MULTIPLIER);
   stopTurbo(aircraft);
   assert.equal(aircraft.turbo,null);
-  assert.equal(requestTurbo(aircraft,{lastUsed:1,now:2,unlimited:true}).ok,true);
+  assert.equal(requestTurbo(aircraft).ok,true);
 });

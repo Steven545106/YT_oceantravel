@@ -6,7 +6,6 @@
   "overviewPixelsPerDegree": 20,
   "demMaxMeters": 4000,
   "world": { "seamLongitude": -168, "north": 75, "south": -60, "ghostDegrees": 12 },
-  "nav": { "cell": 6, "barrierKm": 12 },
   "exaggeration": { "default": 1.15, "areas": [{ "bounds": [119.95, 21.7, 122.3, 25.5], "value": 1.9 }] },
   "countries": [
     { "code": "tw", "name": "台灣", "label": "TAIWAN", "coast": "taiwan_coast.json", "reliefStep": 0.05,

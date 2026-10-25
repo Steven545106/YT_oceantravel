@@ -2,7 +2,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
-const args=['dist/ocean.js','dist/landmark-review.js','dist/nav-worker.js','--bundle','--format=esm','--target=es2022','--minify',
+const args=['dist/ocean.js','dist/landmark-review.js','--bundle','--format=esm','--target=es2022','--minify',
   ...['png','jpg','webp','bin','glb'].map(ext=>`--loader:.${ext}=file`),
   '--asset-names=assets/[name]-[hash]','--public-path=./build','--outdir=dist/build','--entry-names=[name].bundle'];
 let binary=process.env.ESBUILD_BINARY_PATH;

@@ -2,7 +2,7 @@
 // as separate files instead of being baked into one huge script, and a progress bar tracks it.
 // Only start-up items count; streamed detail (coast chunks, heightmap tiles) loads in the background later.
 const WEIGHTS = {
-  'coast/outline.json': 3, 'dem:overview': 2, places: 3, 'seas.json': 1, 'landmarks.json': 1, 'land:nearby': 6, ship: 2, water: 1
+  'coast/outline.bin': 3, 'dem:overview': 2, places: 3, 'seas.json': 1, 'landmarks.json': 1, 'land:nearby': 6, ship: 2, water: 1
 };
 const TOTAL = Object.values(WEIGHTS).reduce((a, b) => a + b, 0);
 const done = new Set();
@@ -49,6 +49,14 @@ export function fetchGrayPixels(name) {
     image.onerror = () => reject(new Error(`無法載入 ${name}`));
     image.src = `./Data/${name}`;
   });
+}
+
+export async function fetchBinary(name) {
+  const response = await fetch(`./Data/${name}`, { cache: 'no-cache' });
+  if (!response.ok) throw new Error(`無法載入 ${name}（${response.status}）`);
+  const buffer = await response.arrayBuffer();
+  markLoaded(name);
+  return buffer;
 }
 
 export async function fetchJson(name) {

@@ -24,6 +24,12 @@ export function addMapLabel({ text, x, z, kind = 'island', priority = 10, maxHei
   });
 }
 
+// Replace every label of one kind (e.g. 'teleport' points, which the player can move).
+export function setMapMarkers(kind, markers) {
+  for (let i = mapLabels.length - 1; i >= 0; i--) if (mapLabels[i].kind === kind) mapLabels.splice(i, 1);
+  for (const marker of markers) addMapLabel({ ...marker, kind });
+}
+
 export function addMapLabelAtGeo(options, latitude, longitude) {
   const world = geoToWorld({ latitude, longitude });
   addMapLabel({ ...options, x: world.x, z: world.y });

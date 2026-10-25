@@ -25,12 +25,15 @@ for(const ref of NK_PH_REFERENCE_MODELS)test(`${ref.name} has a finite, efficien
   assert.equal(root.userData.referencePass,'nk-ph-2026');
   assert.ok(ref.sources.length);
 });
-test('North Korean and Philippine catalogue preserves exactly 12 stamps and their positions',()=>{
+test('Philippine catalogue contains the requested ten stamps in order',()=>{
   const entries=landmarks.filter(item=>['北韓','菲律賓'].includes(item.country));
   assert.equal(entries.length,12);assert.equal(NK_PH_REFERENCE_MODELS.length,12);
   for(const entry of entries)assert.ok(NK_PH_REFERENCE_MODELS.some(ref=>ref.name===entry.name));
+  assert.deepEqual(landmarks.filter(item=>item.country==='菲律賓').map(item=>item.name),[
+    '馬尼拉王城區','維甘古城','聖地牙哥堡','馬拉坎南宮','菲律賓國家美術館',
+    '馬尼拉大都會劇院','黎剎紀念碑','科雷希多島','巴丹西班牙古建築園區','帕瓦伊教堂'
+  ]);
   assert.equal(landmarks.find(item=>item.name==='白頭山').options.volcano,'paektu');
-  assert.equal(landmarks.find(item=>item.name==='馬永火山').options.volcano,'mayon');
 });
 test('Pyongyang arch and Fort Santiago gateway have actual openings',()=>{
   for(const [name,solidX,passY] of [['平壤凱旋門',.35,.24],['聖地牙哥堡',.25,.12]]){
@@ -41,11 +44,19 @@ test('Pyongyang arch and Fort Santiago gateway have actual openings',()=>{
     assert.ok(ray(solidX).length>0,`${name}: pier missing`);
   }
 });
-test('both peak models replace the generic flag with distinct summits',()=>{
+test('Paektu summit replaces the generic flag',()=>{
   assert.equal(roots.get('白頭山').userData.summit,'Lake Chon caldera');
-  assert.equal(roots.get('馬永火山').userData.summit,'Mayon cone and crater');
-  for(const name of ['白頭山','馬永火山']){
-    const root=roots.get(name),size=new THREE.Box3().setFromObject(root).getSize(new THREE.Vector3());
-    assert.ok(size.y<1.5&&size.x<2,name);
-  }
+  const size=new THREE.Box3().setFromObject(roots.get('白頭山')).getSize(new THREE.Vector3());
+  assert.ok(size.y<1.5&&size.x<2);
+});
+test('Intramuros gate has a walk-through passage',()=>{
+  const root=roots.get('馬尼拉王城區');root.updateMatrixWorld(true);
+  const hits=x=>new THREE.Raycaster(new THREE.Vector3(x,.1,1.2),new THREE.Vector3(0,0,-1))
+    .intersectObject(root,true).filter(hit=>Math.abs(hit.point.z-.63)<.2);
+  assert.equal(hits(0).length,0);assert.ok(hits(.5).length>0);
+});
+test('Paoay tower stands apart from the buttressed church',()=>{
+  const root=roots.get('帕瓦伊教堂'),box=new THREE.Box3().setFromObject(root);
+  assert.ok(root.userData.features.includes('獨立鐘樓'));
+  assert.ok(box.min.x<-.8&&box.max.x>.6);
 });

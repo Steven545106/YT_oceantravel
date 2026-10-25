@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import {geoToWorld,worldToGeo,kmPerWorldUnitAt} from '../dist/geo.js';
 import {landmarkFootprintScale,landmarkDisplayGeo,landmarkDisplayName,layoutLandmarkDisplays,landmarkDisplayScale,TERRAIN_LANDMARK_TYPES} from '../dist/landmark-scale.js';
-import {pointInIsland} from '../dist/nav-coast.js';
+import {pointInIsland} from '../dist/coast-query.js';
 const ctx=new Proxy({createLinearGradient:()=>({addColorStop(){}}),createRadialGradient:()=>({addColorStop(){}})},{get:(t,k)=>t[k]??(()=>{})});globalThis.document={createElement:()=>({getContext:()=>ctx})};
 const {LANDMARK_BUILDERS}=await import('../dist/landmark-models.js');
 const root=new URL('../dist/Data/',import.meta.url);const data=JSON.parse(fs.readFileSync(new URL('landmarks.json',root))).landmarks;

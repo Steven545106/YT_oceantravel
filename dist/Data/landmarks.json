@@ -951,45 +951,18 @@
     },
     {
       "country": "菲律賓",
-      "name": "聖奧斯汀教堂",
-      "lat": 14.5891,
-      "lon": 120.9752,
-      "type": "sanAgustin",
-      "realHeight": 30,
+      "name": "馬尼拉王城區",
+      "lat": 14.59218,
+      "lon": 120.97308,
+      "type": "intramuros",
+      "realHeight": 24,
+      "displayScale": 1.15,
       "aliases": [
-        "San Agustin Church",
-        "馬尼拉王城",
         "Intramuros",
-        "馬尼拉"
+        "Walled City of Manila",
+        "馬尼拉王城"
       ],
-      "intro": "1607 年完工，位於馬尼拉王城內，是菲律賓現存最古老的石造教堂，1993 年與其他巴洛克教堂一同列入世界遺產。"
-    },
-    {
-      "country": "菲律賓",
-      "name": "黎剎紀念碑",
-      "lat": 14.5818,
-      "lon": 120.977,
-      "type": "rizalMonument",
-      "realHeight": 13,
-      "aliases": [
-        "Rizal Monument",
-        "黎剎公園",
-        "Rizal Park"
-      ],
-      "intro": "位於馬尼拉黎剎公園，紀念菲律賓民族英雄何塞·黎剎，1913 年揭幕，方尖碑前是黎剎的銅像，長年有儀隊守衛。"
-    },
-    {
-      "country": "菲律賓",
-      "name": "聖地牙哥堡",
-      "lat": 14.5951,
-      "lon": 120.9706,
-      "type": "fortSantiago",
-      "realHeight": 10,
-      "aliases": [
-        "Fort Santiago",
-        "聖地亞哥堡"
-      ],
-      "intro": "西班牙人自 16 世紀末以石材修建的要塞，位於巴石河口、守衛馬尼拉王城；黎剎就義前曾被囚禁於此。"
+      "intro": "馬尼拉舊城核心，保存西班牙殖民時期的石造城牆、城門、堡壘與廣場。"
     },
     {
       "country": "菲律賓",
@@ -1007,93 +980,120 @@
     },
     {
       "country": "菲律賓",
-      "name": "巴拿威梯田",
-      "lat": 16.919,
-      "lon": 121.059,
-      "type": "banaueTerraces",
-      "realHeight": 60,
+      "name": "聖地牙哥堡",
+      "lat": 14.5951,
+      "lon": 120.9706,
+      "type": "fortSantiago",
+      "realHeight": 10,
       "aliases": [
-        "Banaue Rice Terraces",
-        "伊富高梯田",
-        "Ifugao"
+        "Fort Santiago",
+        "聖地亞哥堡"
       ],
-      "intro": "伊富高族在陡峭山坡上開墾的梯田；巴拿威周邊的巴達德、邦安梯田屬於 1995 年列入世界遺產的伊富高梯田群。"
+      "intro": "西班牙人自 16 世紀末以石材修建的要塞，位於巴石河口、守衛馬尼拉王城；黎剎就義前曾被囚禁於此。"
     },
     {
       "country": "菲律賓",
-      "name": "百勝灘",
-      "lat": 14.249,
-      "lon": 121.594,
-      "type": "pagsanjanFalls",
-      "realHeight": 91,
-      "aliases": [
-        "Pagsanjan Falls",
-        "Cavinti Falls"
-      ],
-      "intro": "位於拉古納省的瀑布，遊客搭乘當地船夫划的小船逆流穿過峽谷，最後抵達落差約 90 公尺的瀑布。"
-    },
-    {
-      "country": "菲律賓",
-      "name": "塔爾火山",
-      "lat": 14.002,
-      "lon": 120.993,
-      "type": "taal",
-      "realHeight": 311,
-      "aliases": [
-        "Taal Volcano",
-        "塔阿爾火山",
-        "大雅台",
-        "Tagaytay"
-      ],
-      "intro": "八打雁省塔爾湖中的火山島，是世界上最小的活火山之一，火山島裡還有火口湖，2020 年曾大規模噴發。"
-    },
-    {
-      "country": "菲律賓",
-      "name": "博哈多爾角燈塔",
-      "lat": 18.5096,
-      "lon": 120.5967,
-      "type": "bojeador",
+      "name": "馬拉坎南宮",
+      "lat": 14.59395,
+      "lon": 120.99435,
+      "type": "malacanang",
       "realHeight": 20,
+      "displayScale": 1.1,
       "aliases": [
-        "Cape Bojeador Lighthouse",
-        "Burgos Lighthouse"
+        "Malacañang Palace",
+        "Malacañan Palace",
+        "菲律賓總統府"
       ],
-      "intro": "1892 年啟用的西班牙時代燈塔，立在呂宋島西北角的山丘上，八角形磚造塔身，至今仍在運作。"
+      "intro": "位於馬尼拉巴石河畔的總統府建築群，河岸立面結合白色廊柱、拱窗與紅瓦屋頂。"
     },
     {
       "country": "菲律賓",
-      "name": "巴斯科燈塔",
-      "lat": 20.4567,
-      "lon": 121.9606,
-      "type": "bascoLighthouse",
-      "realHeight": 20,
+      "name": "菲律賓國家美術館",
+      "lat": 14.58695,
+      "lon": 120.98132,
+      "type": "nationalMuseumFineArts",
+      "realHeight": 23,
+      "displayScale": 1.1,
       "aliases": [
-        "Basco Lighthouse",
-        "Naidi Lighthouse",
-        "巴丹群島",
-        "Batanes",
-        "巴斯科"
+        "National Museum of Fine Arts",
+        "Old Legislative Building",
+        "舊議會大廈"
       ],
-      "intro": "巴丹群島首府巴斯科奈迪山上的白色燈塔，四周是起伏的綠色草坡與海景；巴丹群島是菲律賓最北端的省份，與台灣隔著巴士海峽相望。"
+      "intro": "國家美術館設於舊議會大廈，以對稱的新古典主義立面、中央柱廊與寬大階梯著稱。"
     },
     {
       "country": "菲律賓",
-      "name": "馬永火山",
-      "lat": 13.2572,
-      "lon": 123.6856,
-      "type": "peak",
-      "realHeight": 0,
+      "name": "馬尼拉大都會劇院",
+      "lat": 14.594,
+      "lon": 120.9806,
+      "type": "metropolitanTheater",
+      "realHeight": 22,
+      "displayScale": 1.1,
       "aliases": [
-        "Mayon",
-        "Mount Mayon",
-        "Mayon Volcano"
+        "Manila Metropolitan Theater",
+        "MET Manila",
+        "Tanghalang Metropolitan"
       ],
-      "intro": "標高約 2,463 公尺，位於呂宋島東南的阿爾拜省，以近乎完美的圓錐外形聞名，是菲律賓最活躍的火山之一。",
-      "labelHeight": 2500,
-      "options": {
-        "smoke": true,
-        "volcano": "mayon"
-      }
+      "intro": "1931 年落成的裝飾藝術風格劇院，以彩色玻璃、弧形立面與菲律賓植物紋樣聞名。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "黎剎紀念碑",
+      "lat": 14.5818,
+      "lon": 120.977,
+      "type": "rizalMonument",
+      "realHeight": 13,
+      "aliases": [
+        "Rizal Monument",
+        "黎剎公園",
+        "Rizal Park"
+      ],
+      "intro": "位於馬尼拉黎剎公園，紀念菲律賓民族英雄何塞·黎剎，1913 年揭幕，方尖碑前是黎剎的銅像，長年有儀隊守衛。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "科雷希多島",
+      "lat": 14.38857,
+      "lon": 120.59195,
+      "type": "corregidor",
+      "realHeight": 24,
+      "displayScale": 1.1,
+      "aliases": [
+        "Corregidor Island",
+        "Malinta Tunnel",
+        "科雷希多島戰爭遺跡"
+      ],
+      "intro": "馬尼拉灣口的島嶼要塞，保留二戰時期的岸防砲臺、軍營遺跡與馬林塔隧道。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "巴丹西班牙古建築園區",
+      "lat": 14.60267,
+      "lon": 120.38525,
+      "type": "lasCasas",
+      "realHeight": 18,
+      "displayScale": 1.1,
+      "aliases": [
+        "Las Casas Filipinas de Acuzar",
+        "Las Casas",
+        "Bagac Heritage Resort"
+      ],
+      "intro": "巴丹省巴加克的歷史建築展示園區，沿石板路集中展示移建與修復的菲律賓傳統宅邸。"
+    },
+    {
+      "country": "菲律賓",
+      "name": "帕瓦伊教堂",
+      "lat": 18.06157,
+      "lon": 120.52155,
+      "type": "paoayChurch",
+      "realHeight": 26,
+      "displayScale": 1.1,
+      "aliases": [
+        "Paoay Church",
+        "San Agustin Church of Paoay",
+        "Saint Augustine Parish Church"
+      ],
+      "intro": "伊羅戈北省的世界遺產教堂，以巨大的抗震扶壁、厚重石牆與獨立鐘樓著稱。"
     },
     {
       "country": "台灣",
@@ -1227,6 +1227,39 @@
       "intro": "澎湖七美東北岸的傳統石滬，以玄武岩與珊瑚礁堆砌成雙心滬房及導魚堤。模型呈現低矮疊石、心形水池與潮間帶礁棚，採退潮展示意象，並未模擬真實潮汐。",
       "country": "台灣",
       "seal": "雙心石滬"
-    }
+    },
+    {"country":"香港","name":"太平山頂","lat":22.27139,"lon":114.15,"type":"victoriaPeak","realHeight":30,"displayScale":1.2,"aliases":["Victoria Peak","The Peak","凌霄閣","Peak Tower"],"intro":"香港島太平山的觀景地標，以凌霄閣弧形屋頂、山頂觀景平台與俯瞰維港的山勢呈現。"},
+    {"country":"香港","name":"維多利亞港","lat":22.2887,"lon":114.1694,"type":"victoriaHarbour","realHeight":70,"displayScale":1.15,"sea":true,"aliases":["Victoria Harbour","維港","Star Ferry"],"intro":"以中環與尖沙咀兩岸天際線、天星小輪及開闊水道構成的香港海港景觀。"},
+    {"country":"香港","name":"天壇大佛","lat":22.25417,"lon":113.90528,"type":"tianTanBuddha","realHeight":34,"displayScale":1.2,"aliases":["Tian Tan Buddha","Big Buddha","昂坪大佛"],"intro":"大嶼山昂坪的青銅坐佛，安坐於蓮座之上，由長階通往圓形祭壇。"},
+    {"country":"香港","name":"星光大道","lat":22.29342,"lon":114.1748,"type":"avenueOfStars","realHeight":8,"displayScale":1.05,"aliases":["Avenue of Stars","尖沙咀星光大道"],"intro":"尖沙咀海濱的電影文化步道，以手印欄杆、李小龍銅像及維港水岸為辨識重點。"},
+    {"country":"香港","name":"大館","lat":22.2814,"lon":114.1537,"type":"taiKwun","realHeight":23,"displayScale":1.1,"aliases":["Tai Kwun","Central Police Station Compound","前中區警署建築群"],"intro":"活化的前中區警署、中央裁判司署與域多利監獄建築群，保留殖民時期立面及內院。"},
+    {"country":"澳門","name":"大三巴牌坊","lat":22.19745,"lon":113.54077,"type":"ruinsStPaul","realHeight":27,"displayScale":1.2,"aliases":["Ruins of St. Paul's","Ruins of Saint Paul's","聖保祿教堂遺址"],"intro":"聖保祿教堂留存的雕刻花崗石立面，前方設寬闊石階；模型保留牌坊後方的開放空間。"},
+    {"country":"澳門","name":"議事亭前地","lat":22.19378,"lon":113.53953,"type":"senadoSquare","realHeight":18,"displayScale":1.05,"aliases":["Senado Square","Largo do Senado"],"intro":"以黑白波浪石仔路、噴泉、民政總署及仁慈堂立面構成的歷史廣場。"},
+    {"country":"澳門","name":"東望洋炮台及燈塔","lat":22.19641,"lon":113.55454,"type":"guiaFortress","realHeight":30,"displayScale":1.1,"aliases":["Guia Fortress","Guia Lighthouse","東望洋燈塔","聖母雪地殿教堂"],"intro":"東望洋山頂的石砌炮台、白色燈塔及雪地聖母小堂。"},
+    {"country":"澳門","name":"澳門旅遊塔","lat":22.17955,"lon":113.53676,"type":"macauTower","realHeight":338,"displayScale":1.1,"aliases":["Macau Tower","Macau Tower Convention and Entertainment Centre"],"intro":"高聳細長的觀光塔，設環形觀景層、塔身支柱及頂端天線。"},
+    {"country":"澳門","name":"澳門威尼斯人","lat":22.14821,"lon":113.55925,"type":"venetianMacao","realHeight":72,"displayScale":1.1,"aliases":["The Venetian Macao","Venetian Macau","威尼斯人"],"intro":"路氹城的威尼斯風格建築群，以鐘樓、拱廊、運河、橋梁和紅瓦屋頂呈現。"},
+    {"country":"越南","name":"下龍灣","lat":20.91,"lon":107.06,"type":"haLongBay","realHeight":110,"displayScale":1.2,"maxDisplayFootprintKm":8,"sea":true,"preserveLocation":true,"aliases":["Ha Long Bay","Hạ Long Bay","Halong Bay"],"intro":"越南東北部的世界自然遺產海灣。模型呈現海面上多座陡立、覆有植被的石灰岩塔峰和觀光帆船。"},
+    {"country":"越南","name":"巴拿山黃金佛手橋","lat":15.99486,"lon":107.99625,"type":"goldenBridge","realHeight":140,"displayScale":1.45,"maxDisplayFootprintKm":5,"aliases":["Golden Bridge","Cầu Vàng","Ba Na Hills Golden Bridge","佛手橋"],"intro":"峴港巴拿山的金色弧形步道，由兩隻巨大風化石手托起，周圍為山地植被。"},
+    {"country":"越南","name":"河內還劍湖","lat":21.02889,"lon":105.8525,"type":"hoanKiemLake","realHeight":18,"displayScale":1.25,"maxDisplayFootprintKm":3,"aliases":["Hoan Kiem Lake","Hồ Hoàn Kiếm","龜塔","Tháp Rùa"],"intro":"河內市中心的還劍湖，以湖心龜塔、玉山祠和鮮紅的棲旭橋作為歷史地標。"},
+    {"country":"越南","name":"富國島","lat":10.22,"lon":103.962,"type":"phuQuocIsland","realHeight":20,"displayScale":1.2,"maxDisplayFootprintKm":5,"preserveLocation":true,"aliases":["Phu Quoc Island","Phú Quốc","富國島西岸"],"intro":"泰國灣的熱帶海島。模型聚焦西岸面向落日的沙灘、椰林、淺海與低層度假屋。"},
+    {"country":"越南","name":"寧平長安名勝群","lat":20.25273,"lon":105.91808,"type":"trangAn","realHeight":105,"displayScale":1.25,"maxDisplayFootprintKm":7,"aliases":["Trang An","Tràng An","Trang An Landscape Complex","寧平長安"],"intro":"寧平世界遺產名勝群，以綠色石灰岩峰、蜿蜒水道、岩洞和傳統小船呈現。"},
+    {"country":"汶萊","name":"努洛伊曼皇宮","lat":4.8721,"lon":114.9206,"type":"nurulImanPalace","realHeight":32,"displayScale":1.25,"maxDisplayFootprintKm":1.7,"aliases":["Istana Nurul Iman","Nurul Iman Palace","汶萊皇宮"],"intro":"汶萊河畔的蘇丹宮殿，以白色長廊、金色穹頂與對稱宮殿群呈現。"},
+    {"country":"汶萊","name":"奧瑪阿里賽義夫丁清真寺","lat":4.8904,"lon":114.9393,"type":"omarAliMosque","realHeight":52,"displayScale":1.35,"maxDisplayFootprintKm":1.5,"aliases":["Omar Ali Saifuddien Mosque","Sultan Omar Ali Saifuddien Mosque"],"intro":"斯里巴加灣市的金頂白色清真寺；以大理石柱、宣禮塔、潟湖及皇家船呈現。"},
+    {"country":"汶萊","name":"烏魯淡布隆國家公園","lat":4.548,"lon":115.172,"type":"uluTemburong","realHeight":55,"displayScale":1.2,"maxDisplayFootprintKm":5,"aliases":["Ulu Temburong National Park","Temburong Canopy Walk"],"intro":"汶萊東部的原始雨林，以淡布隆河、樹冠層與高架觀景步道呈現。"},
+    {"country":"馬來西亞","name":"雙子星塔","lat":3.1579,"lon":101.7116,"type":"petronasTowers","realHeight":452,"displayScale":1.3,"maxDisplayFootprintKm":1.6,"aliases":["Petronas Twin Towers","KLCC","吉隆坡雙子星塔"],"intro":"吉隆坡的 88 層雙塔，以不鏽鋼階梯式輪廓、兩座尖塔及 41–42 樓空中橋呈現。"},
+    {"country":"馬來西亞","name":"蘭卡威天空之橋","lat":6.3864,"lon":99.6622,"type":"langkawiSkyBridge","realHeight":80,"displayScale":1.3,"maxDisplayFootprintKm":4.0,"aliases":["Langkawi Sky Bridge","SkyBridge","Langkawi Skybridge"],"intro":"蘭卡威馬西岡山上的弧形懸索行人橋，跨越熱帶森林深谷。"},
+    {"country":"馬來西亞","name":"神山國家公園","lat":6.075,"lon":116.558,"type":"kinabaluPark","realHeight":280,"displayScale":1.35,"maxDisplayFootprintKm":9,"aliases":["Kinabalu Park","Mount Kinabalu","Gunung Kinabalu","京那巴魯山"],"intro":"沙巴神山國家公園，以陡峭花崗岩主峰、層疊山脊與婆羅洲山地雨林呈現。"},
+    {"country":"馬來西亞","name":"沙巴丹絨亞路海灘","lat":5.9523,"lon":116.0434,"type":"tanjungAruBeach","realHeight":12,"displayScale":1.3,"maxDisplayFootprintKm":3.2,"preserveLocation":true,"aliases":["Tanjung Aru Beach","Pantai Tanjung Aru","丹絨亞路"],"intro":"沙巴亞庇面西的海灘，以寬闊沙岸、淺水浪緣和沿岸亞魯木樹呈現。"},
+    {"country":"馬來西亞","name":"馬六甲荷蘭紅屋","lat":2.1944,"lon":102.2484,"type":"stadthuys","realHeight":25,"displayScale":1.25,"maxDisplayFootprintKm":1.5,"aliases":["The Stadthuys","Stadthuys","Dutch Square","荷蘭廣場"],"intro":"馬六甲歷史廣場的磚紅色荷蘭殖民行政樓，配白窗框、陡屋頂與鐘樓。"},
+    {"country":"馬來西亞","name":"布城粉紅清真寺","lat":2.9366,"lon":101.6897,"type":"putraMosque","realHeight":116,"displayScale":1.3,"maxDisplayFootprintKm":1.7,"aliases":["Putra Mosque","Masjid Putra","Pink Mosque"],"intro":"布城湖畔的玫瑰色花崗岩清真寺，以粉紅大穹頂、小穹頂與高聳宣禮塔呈現。"},
+    {"country":"印尼","name":"峇里島烏布梯田","lat":-8.4312,"lon":115.2791,"type":"ubudRiceTerraces","realHeight":60,"displayScale":1.35,"maxDisplayFootprintKm":4.5,"aliases":["Tegallalang Rice Terrace","Tegalalang Rice Terrace","Ceking Rice Terrace","Ubud Rice Terraces"],"intro":"峇里島德格拉朗的山谷稻田，以依地形彎曲的層層梯田、田埂與 Subak 灌溉水道呈現。"},
+    {"country":"印尼","name":"布羅莫火山","lat":-7.9425,"lon":112.9530,"type":"mountBromo","realHeight":2329,"displayScale":1.25,"maxDisplayFootprintKm":9,"aliases":["Mount Bromo","Gunung Bromo","Bromo Tengger Semeru"],"intro":"東爪哇的布羅莫火山與騰格爾沙海，呈現開口火山口、巴托克火山錐及遠處山影。"},
+    {"country":"印尼","name":"日惹蘇丹皇宮","lat":-7.8056,"lon":110.3640,"type":"yogyakartaKraton","realHeight":20,"displayScale":1.25,"maxDisplayFootprintKm":1.8,"aliases":["Kraton Yogyakarta","Keraton Yogyakarta","Yogyakarta Palace","The Kraton"],"intro":"日惹蘇丹王宮的宮門、白牆庭院和傳統爪哇 Pendopo 多層屋頂亭閣。"},
+    {"country":"印尼","name":"婆羅浮屠","lat":-7.6078,"lon":110.2039,"type":"borobudur","realHeight":35,"displayScale":1.3,"maxDisplayFootprintKm":2.0,"aliases":["Borobudur","Borobudur Temple","Candi Borobudur"],"intro":"中爪哇的佛教世界遺產，以五層方形迴廊、三層圓形平台和中央及環列佛塔呈現。"},
+    {"country":"新加坡","name":"濱海灣花園","lat":1.2816,"lon":103.8636,"type":"gardensByTheBay","realHeight":50,"displayScale":1.35,"maxDisplayFootprintKm":2.2,"aliases":["Gardens by the Bay","Supertree Grove","擎天樹"],"intro":"濱海灣的擎天樹群、OCBC 空中步道與花穹、雲霧林玻璃溫室。"},
+    {"country":"新加坡","name":"魚尾獅公園","lat":1.2868,"lon":103.8545,"type":"merlionPark","realHeight":8.6,"displayScale":1.25,"maxDisplayFootprintKm":1.1,"aliases":["Merlion Park","Merlion","魚尾獅"],"intro":"濱海灣岸邊的魚身獅首白色雕像，面向海灣噴水。"},
+    {"country":"新加坡","name":"新加坡環球影城","lat":1.2540,"lon":103.8238,"type":"universalStudiosSingapore","realHeight":22,"displayScale":1.2,"maxDisplayFootprintKm":1.9,"aliases":["Universal Studios Singapore","USS","聖淘沙環球影城"],"intro":"聖淘沙的主題樂園入口，以藍金地球標誌、拱門和色彩豐富的電影街景呈現。"},
+    {"country":"新加坡","name":"星耀樟宜","lat":1.3602,"lon":103.9893,"type":"jewelChangi","realHeight":40,"displayScale":1.3,"maxDisplayFootprintKm":1.9,"aliases":["Jewel Changi Airport","Jewel Rain Vortex","HSBC Rain Vortex"],"intro":"樟宜機場的玻璃鋼骨穹頂，內有中央雨漩渦與森林谷。"},
+    {"country":"新加坡","name":"克拉碼頭","lat":1.2906,"lon":103.8465,"type":"clarkeQuay","realHeight":17,"displayScale":1.2,"maxDisplayFootprintKm":1.7,"aliases":["Clarke Quay","CQ at Clarke Quay","新加坡河碼頭"],"intro":"新加坡河畔修復的彩色店屋與倉庫，搭配遮陽棚和遊船。"}
   ]
 }

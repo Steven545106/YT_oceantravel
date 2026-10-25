@@ -5,7 +5,6 @@ import {kmPerWorldUnitAt} from './geo.js';
 import {landmarkAccess} from './landmark-access.js';
 import {isCountryUnlocked} from './achievements.js';
 import {hasStamp} from './journey.js';
-import {runNavigation} from './nav.js';
 const layer=document.createElement('div');layer.className='landmark-hud';document.body.append(layer);
 const nearby=document.createElement('div');nearby.className='landmark-nearby';document.body.append(nearby);
 nearby.id='stamp-guidance-list';nearby.hidden=true;
@@ -55,16 +54,14 @@ export function updateLandmarkHud(delta,topDown){
   const list=nearbyStampGuides(landmarkAccess,{x:boat.position.x,z:boat.position.z},units,isCountryUnlocked,hasStamp).slice(0,3);
   for(let i=0;i<list.length;i++){
     let button=buttons[i];if(!button){
-      button=document.createElement('button');button.type='button';nearby.append(button);buttons.push(button);
+      button=document.createElement('div');button.className='stamp-guide';nearby.append(button);buttons.push(button);
       const arrow=document.createElement('span');arrow.className='stamp-direction-arrow';arrow.textContent='↑';arrow.setAttribute('aria-hidden','true');
       const text=document.createElement('span');text.className='stamp-direction-text';button.append(arrow,text);
-      button.addEventListener('click',()=>runNavigation(button.dataset.destination));
     }
     const {t,stop,km}=list[i],bearing=stampBearing({x:boat.position.x,z:boat.position.z},stop,boat.rotation.y);
     button.children[0].style.transform=`rotate(${bearing.degrees}deg)`;
-    button.children[1].textContent=`${t.name} · ${km.toFixed(1)} km\n${bearing.direction} · ${bearing.instruction}`;
-    button.title=`自動導航前往 ${t.name}`;
-    button.dataset.destination=`${t.country}-${t.name}`;button.hidden=false;
+    button.children[1].textContent=`${t.country}・${t.name} · ${km.toFixed(1)} km\n${bearing.direction} · ${bearing.instruction}`;
+    button.hidden=false;
   }
   for(let i=list.length;i<buttons.length;i++)buttons[i].hidden=true;
   nearby.hidden=false;

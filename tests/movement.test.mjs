@@ -52,3 +52,20 @@ test('a new press of the climb key restarts the hold even if its last release wa
   time+=2;assert.equal(input.active('takeoff'),true);
   assert.equal(input.release('key:f').kind,'hold');
 });
+
+test('ships: W held is manual, E toggles auto cruise until E or S, and S held goes astern',async()=>{
+  const {shipThrottle,cruiseAfterKey,shipModeText}=await import('../dist/controls.js');
+  assert.equal(cruiseAfterKey('w',false),false,'W does not latch');
+  assert.equal(shipThrottle(new Set(['w']),false),1,'W held drives ahead');
+  assert.equal(shipThrottle(new Set(),false),0,'W released, the engine stops');
+  let cruise=cruiseAfterKey('e',false);
+  assert.equal(cruise,true);
+  assert.equal(shipThrottle(new Set(),cruise),1,'auto cruise keeps going');
+  assert.equal(cruiseAfterKey('a',cruise),true,'steering leaves the cruise on');
+  assert.equal(shipThrottle(new Set(['s']),cruise),-1,'S held goes astern');
+  assert.equal(cruiseAfterKey('s',cruise),false,'S stops the cruise');
+  assert.equal(cruiseAfterKey('e',cruise),false,'E again stops it');
+  assert.equal(shipModeText({cruise:true,throttle:1,velocity:2}),'自動巡航');
+  assert.equal(shipModeText({cruise:false,throttle:1,velocity:1}),'手動前進');
+  assert.equal(shipModeText({cruise:false,throttle:0,velocity:0}),'停船');
+});

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFile,stat} from 'node:fs/promises';
 import {REGIONS,COUNTRIES,COUNTRY_ORDER,countryCode,countryName,exaggerationAt} from '../dist/regions.js';
+import {decodeCoastOutline} from '../dist/coast-outline.js';
 const data=(path)=>new URL(`../dist/Data/${path}`,import.meta.url);
 const readJson=async(path)=>JSON.parse(await readFile(data(path)));
 
@@ -22,17 +23,26 @@ test('registry lists the countries in unlock order with codes, names and places'
 });
 
 test('every coast chunk has a full-detail file, and the outline layer is a much lighter subset',async()=>{
-  const outline=await readJson(REGIONS.coast.outline);
-  assert.equal(outline.chunks.length,REGIONS.coast.chunks.length);
+  const chunks=decodeCoastOutline(await readFile(data(REGIONS.coast.outline)),{countries:COUNTRIES,...REGIONS.coast});
+  assert.equal(chunks.length,REGIONS.coast.chunkCount);
+  assert.equal(new Set(chunks.map(chunk=>chunk.id)).size,chunks.length);
   let rough=0,detailed=0;
-  for(const chunk of REGIONS.coast.chunks){
-    const detail=await readJson(chunk.file),layer=outline.chunks.find(entry=>entry.id===chunk.id);
+  for(const chunk of chunks){
+    const detail=await readJson(chunk.file);
     assert.equal(detail.polys.length,chunk.islands,chunk.id);
-    assert.ok(layer.polys.length<=chunk.islands,chunk.id);
-    for(const list of [detail.cut,layer.cut])for(const i of list)assert.ok(Number.isInteger(i)&&i>=0,chunk.id);
-    rough+=layer.polys.reduce((n,p)=>n+p.length,0);detailed+=detail.polys.reduce((n,p)=>n+p.length,0);
+    assert.ok(chunk.polys.length<=chunk.islands,chunk.id);
+    for(const list of [detail.cut,chunk.cut])for(const i of list)assert.ok(Number.isInteger(i)&&i>=0,chunk.id);
+    // the listed bounds hold the full-detail outlines (rounded outwards to the outline grid)
+    let lon=0,lat=0;const [a,b,c,d]=chunk.bounds;
+    for(const flat of detail.polys){lon=0;lat=0;for(let i=0;i<flat.length;i+=2){lon+=flat[i];lat+=flat[i+1];
+      assert.ok(lon/detail.scale>=a-1e-9&&lon/detail.scale<=c+1e-9&&lat/detail.scale>=b-1e-9&&lat/detail.scale<=d+1e-9,chunk.id);}}
+    rough+=chunk.polys.reduce((n,p)=>n+p.length,0);detailed+=detail.polys.reduce((n,p)=>n+p.length,0);
   }
   assert.ok(rough<detailed/10,'the always-loaded outline layer is far lighter than full detail');
+});
+
+test('the bundled registry stays small: chunks and heightmap tiles are not listed one by one in it',async()=>{
+  assert.ok((await stat(data('regions.json'))).size<60000);
 });
 
 test('heightmap tiles exist and lie inside the overview',async()=>{
@@ -46,8 +56,18 @@ test('heightmap tiles exist and lie inside the overview',async()=>{
   }
 });
 
-test('the start-up place index is a small part of the full lists and holds each country\'s cities, harbours and lighthouses',async()=>{
-  const index=await readJson('places/index.json');
+test('the place index is split by world region, a small part of the full lists with each country\'s cities, harbours and lighthouses',async()=>{
+  const index={};
+  for(const group of REGIONS.placeGroups){
+    const part=await readJson(group.file);
+    assert.ok(group.cells.length>0,group.id);
+    for(const [code,places] of Object.entries(part)){
+      assert.equal(COUNTRIES.find(c=>c.code===code)?.placeGroup,group.id,code);
+      for(const p of places)assert.ok(group.cells.some(([x,y])=>Math.floor(p.lon/10)===x&&Math.floor(p.lat/10)===y),`${code} ${p.name}`);
+      index[code]=places;
+    }
+  }
+  assert.ok(REGIONS.placeGroups.length>=5);
   let small=0,full=0;
   for(const country of COUNTRIES){
     const all=(await readJson(country.places)).places,few=index[country.code]??[];

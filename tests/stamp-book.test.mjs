@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 test('stamp book lists country stamps once sights are placed, without the boat ever running trackJourney',async()=>{
   const memory=new Map([['relax-journey-v1',JSON.stringify({stamps:{'台北101':1},specials:{pinkWhale:2}})]]);
   globalThis.localStorage={getItem:k=>memory.get(k)??null,setItem:(k,v)=>memory.set(k,v)};globalThis.addEventListener=()=>{};
-  const node=()=>{const n={children:[],dataset:{},style:{},hidden:true,classList:{toggle(){}},addEventListener(){}};n.append=(...c)=>n.children.push(...c);n.replaceChildren=(...c)=>{n.children=c;};return n;};
+  const node=()=>{const n={children:[],dataset:{},style:{},hidden:true,classList:{toggle(){}},addEventListener(){},setAttribute(){}};n.append=(...c)=>n.children.push(...c);n.replaceChildren=(...c)=>{n.children=c;};return n;};
   const nodes={};globalThis.document={querySelector:s=>nodes[s]??=node(),querySelectorAll:()=>[],createElement:()=>node()};
   const {initJourney,setJourneyOpen,setStampTargets}=await import('../dist/journey.js');
   initJourney({onNotify(){}});

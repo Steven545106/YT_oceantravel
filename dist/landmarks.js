@@ -1,9 +1,9 @@
 import { addLandmarkDetail } from './landmark-detail.js';
 import { isCountryUnlocked } from './achievements.js';
-import { createCoastQuery } from './nav-coast.js';
-import { seaCandidates } from './nav-destinations.js';
+import { createCoastQuery } from './coast-query.js';
+import { seaCandidates } from './stamp-stops.js';
 import { landmarkAccess } from './landmark-access.js';
-import { sceneryObstacles, obstacleContains } from './nav-obstacles.js';
+import { sceneryObstacles, obstacleContains } from './scenery-obstacles.js';
 import { displayStampZone } from './stamp-reach.js';
 import * as THREE from 'three';
 import { fetchJson } from './data-loader.js';
@@ -89,7 +89,7 @@ export function addLandmarks() {
     const target=stampTargets.get(item.name);
     target.displayZone=displayStampZone(displayBounds,kmPerWorldUnitAt(position.z));
     target.displayX=position.x;target.displayZ=position.z;target.markerY=displayBounds.max.y+.15;
-    if(!item.entry.terrainReplacement&&!TERRAIN_LANDMARK_TYPES.has(item.entry.type)&&item.entry.type!=='bridge'&&item.entry.type!=='marker'){
+    if(!item.entry.terrainReplacement&&!TERRAIN_LANDMARK_TYPES.has(item.entry.type)&&item.entry.type!=='bridge'&&item.entry.type!=='marker'&&!['victoriaHarbour','haLongBay','trangAn','hoanKiemLake','phuQuocIsland','uluTemburong','langkawiSkyBridge','kinabaluPark','tanjungAruBeach','ubudRiceTerraces','mountBromo','merlionPark','clarkeQuay'].includes(item.entry.type)){
       const pad=.12;
       sceneryObstacles.push({name:item.name,minX:displayBounds.min.x-pad,maxX:displayBounds.max.x+pad,minZ:displayBounds.min.z-pad,maxZ:displayBounds.max.z+pad});
     }
@@ -100,7 +100,7 @@ export function addLandmarks() {
         sceneryObstacles.push({name:item.name,minX:b.min.x-.08,maxX:b.max.x+.08,minZ:b.min.z-.08,maxZ:b.max.z+.08});
     });
     addMapLabel({text:landmarkDisplayName(item.entry),x:position.x,z:position.z,kind:'landmark',priority:45,maxHeight:item.entry.labelHeight??420});
-    addLandmarkDetail(item.group,item.model,{heightAt:terrainHeightAt,sea:item.sea,natural:['peak','yushan','fuji','seongsan','hallasan','seoraksan','jirisan','lake','gorge','queenhead','alishan','tree','banaueTerraces','pagsanjanFalls','taal','dokdo','guishanIsland','vaseRock','twinHearts'].includes(item.entry.type)});
+    addLandmarkDetail(item.group,item.model,{heightAt:terrainHeightAt,sea:item.sea,natural:['peak','yushan','fuji','seongsan','hallasan','seoraksan','jirisan','lake','gorge','queenhead','alishan','tree','banaueTerraces','pagsanjanFalls','taal','dokdo','guishanIsland','vaseRock','twinHearts','corregidor','victoriaPeak','guiaFortress','haLongBay','hoanKiemLake','phuQuocIsland','trangAn','uluTemburong','langkawiSkyBridge','kinabaluPark','tanjungAruBeach','ubudRiceTerraces','mountBromo'].includes(item.entry.type)});
   }
   for(const target of landmarkEntries)setStampStops(target,coastQuery);
 }

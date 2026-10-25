@@ -2,7 +2,7 @@ import { normalizeJourney, parseProgress } from './progress-data.js';
 // Voyage log + stamp book. Progress is saved in localStorage: sailing distance and time, seas and coasts visited, whale sightings,
 // a short timeline, and a stamp for every sight the boat first reaches (with a little introduction for each).
 import { isWithinStampReach } from './stamp-reach.js';
-import { isCountryEarned, isCountryUnlocked, lockMessage, registerMasterBadges } from './achievements.js';
+import { isCountryUnlocked, lockMessage, registerMasterBadges } from './achievements.js';
 import { COUNTRY_ORDER, countryName } from './regions.js';
 
 export const hasStamp=name=>!!data.stamps[name];
@@ -130,7 +130,7 @@ export function trackJourney({ delta, x, z, kmPerUnit, speed, seaName, nearestLa
     logEvent(`第一次靠近${countryName(nearestLand.country)}海岸`);
   }
   for (const target of targets) {
-    const inside = isCountryEarned(target.country) && isWithinStampReach(target,x,z);
+    const inside = isCountryUnlocked(target.country) && isWithinStampReach(target,x,z);
     if (inside && !visiting.has(target.name)) { visiting.add(target.name); onVisit(target); }   // every arrival counts, stamped or not
     else if (!inside) visiting.delete(target.name);
     if (data.stamps[target.name]) continue;
@@ -175,17 +175,47 @@ function renderJournal() {
   return wrap;
 }
 
+// Country groups in the stamp book fold away; which ones are folded is remembered per browser.
+const FOLDED_KEY = 'relax-stamp-folded-v1';
+let foldedGroups;
+try { foldedGroups = new Set(JSON.parse(localStorage.getItem(FOLDED_KEY) ?? '[]')); } catch { foldedGroups = new Set(); }
+const saveFolded = () => { try { localStorage.setItem(FOLDED_KEY, JSON.stringify([...foldedGroups])); } catch { /* private mode */ } };
+function setFolded(ids, folded) {
+  for (const id of ids) folded ? foldedGroups.add(id) : foldedGroups.delete(id);
+  saveFolded();
+  const scroll = ui.body.scrollTop;
+  render();
+  ui.body.scrollTop = scroll;
+}
+// a group's heading row: click to fold or unfold; `parts` follow the title (count, badge)
+function groupHead(id, title, ...parts) {
+  const folded = foldedGroups.has(id);
+  const head = el('button', 'stamp-group-head');
+  head.type = 'button';
+  head.setAttribute('aria-expanded', String(!folded));
+  head.title = folded ? '展開' : '收合';
+  head.append(el('span', 'stamp-group-chevron', folded ? '▸' : '▾'), el('h3', '', title), ...parts);
+  head.addEventListener('click', () => setFolded([id], !folded));
+  return head;
+}
+
 function renderStamps() {
   const wrap = el('div', 'stamps');
   const target = targets.find((entry) => entry.name === openStamp);
   const countries = [...COUNTRY_ORDER, ...new Set(targets.map((entry) => entry.country))].filter((country, i, list) => list.indexOf(country) === i && countryTargets(country).length);
+  const allGroups = [...countries, 'special'];
+  const tools = el('div', 'stamp-fold-tools');
+  const unfoldAll = el('button', '', '全部展開'), foldAll = el('button', '', '全部收合');
+  unfoldAll.type = foldAll.type = 'button';
+  unfoldAll.addEventListener('click', () => setFolded(allGroups, false));
+  foldAll.addEventListener('click', () => setFolded(allGroups.filter((id) => !(target && target.country === id)), true));
+  tools.append(unfoldAll, foldAll);
+  wrap.append(tools);
   for (const country of countries) {
     const list = countryTargets(country), done = countryProgress(country), master = data.masters[country];
-    const head = el('div', 'stamp-group-head');
-    head.append(el('h3', '', country), el('span', 'stamp-group-count', `${done} / ${list.length}`));
     const badge = el('span', `stamp-master${master ? ' is-earned' : ''}`, master ? `🏅 ${country}達人` : `${country}達人（集滿解鎖）`);
-    if (!isCountryEarned(country)) badge.textContent = `🔒 ${lockMessage(country)}`;
-    head.append(badge);
+    if (!isCountryUnlocked(country)) badge.textContent = `🔒 ${lockMessage(country)}`;
+    const head = groupHead(country, country, el('span', 'stamp-group-count', `${done} / ${list.length}`), badge);
     const bar = el('div', 'stamp-group-bar'); const fill = el('span'); fill.style.width = `${done / list.length * 100}%`; bar.append(fill);
     const grid = el('div', 'stamp-grid');
     for (const entry of list) {
@@ -197,13 +227,15 @@ function renderStamps() {
       grid.append(card);
     }
     const group = el('section', 'stamp-group');
-    group.append(head, bar, grid);
-    if (target && target.country === country) group.append(renderStampDetail(target));   // the details open right under their own country
+    group.append(head, bar);
+    if (!foldedGroups.has(country)) {
+      group.append(grid);
+      if (target && target.country === country) group.append(renderStampDetail(target));   // the details open right under their own country
+    }
     wrap.append(group);
   }
   // special stamps
-  const specialHead = el('div', 'stamp-group-head');
-  specialHead.append(el('h3', '', '特別印章'), el('span', 'stamp-group-count', `${SPECIAL_STAMPS.filter((entry) => data.specials[entry.id]).length} / ${SPECIAL_STAMPS.length}`));
+  const specialHead = groupHead('special', '特別印章', el('span', 'stamp-group-count', `${SPECIAL_STAMPS.filter((entry) => data.specials[entry.id]).length} / ${SPECIAL_STAMPS.length}`));
   const specialGrid = el('div', 'stamp-grid');
   for (const special of SPECIAL_STAMPS) {
     const got = data.specials[special.id];
@@ -213,9 +245,10 @@ function renderStamps() {
     specialGrid.append(card);
   }
   const specialGroup = el('section', 'stamp-group');
-  specialGroup.append(specialHead, specialGrid);
+  specialGroup.append(specialHead);
+  if (!foldedGroups.has('special')) specialGroup.append(specialGrid);
   const openSpecial = SPECIAL_STAMPS.find((entry) => entry.id === openStamp);
-  if (openSpecial) {
+  if (openSpecial && !foldedGroups.has('special')) {
     const detail = el('div', 'stamp-detail');
     detail.append(el('h3', '', openSpecial.name), el('p', '', data.specials[openSpecial.id] ? openSpecial.intro : openSpecial.hint));
     if (data.specials[openSpecial.id]) detail.append(el('p', 'journal-empty', `獲得日期：${dayText(data.specials[openSpecial.id])}`));
@@ -234,19 +267,8 @@ function renderStampDetail(target) {
     if (!stamped) {
       const locked = !isCountryUnlocked(target.country);
       detail.append(el('p', '', locked ? `🔒 ${lockMessage(target.country)}，才能前往蓋章。`
-        : `尚未到訪。駛入畫面中${target.name}模型周圍約 6 公里的海域即可集章。也可使用下方自動導航，抵達外海集章點（約 2 公里內）自動蓋章。航行畫面與海圖上的「⚑」會標示集章點。`));
+        : `尚未到訪。駛入畫面中${target.name}模型周圍約 6 公里的海域，或外海集章點約 2 公里內，就會自動蓋章。開啟「集章指示」後，航行畫面與海圖上的「⚑」會標示集章點與方位。`));
       const where = el('p', 'journal-empty'); where.textContent = `位置：${target.country}（${Math.abs(target.lat).toFixed(3)}°N、${Math.abs(target.lon).toFixed(3)}°E）`; detail.append(where);
-      if (!locked) {
-        const go = el('button', 'journey-go', `自動導航前往 ${target.name}`); go.type = 'button';
-        go.addEventListener('click', () => {
-          const input = document.querySelector('#nav-input');
-          if (!input) return;
-          input.value = `${target.country}-${target.name}`;
-          setJourneyOpen(false);
-          input.form?.requestSubmit();
-        });
-        detail.append(go);
-      }
     }
     else {
       detail.append(el('p', '', target.intro));
